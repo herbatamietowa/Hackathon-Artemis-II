@@ -1,6 +1,6 @@
 import type { AnalyzeRequest, AnalyzeResponse, ApproveProjectRequest, ConfirmProjectRequest, DisasterRequest, DisasterResult, GCIRequest, GCIResponse, MaterialOption, ProjectArchitectRequest, ProjectArchitectResponse, ProjectSimulationRequest, ProjectSimulationResult, RawMaterialItem, RawMaterialOrderRequest, SourcingRequest, SourcingResponse } from '../types';
 
-const BASE = '';
+const BASE = '/api';
 
 async function get<T>(path: string): Promise<T> {
   const res = await fetch(`${BASE}${path}`);
