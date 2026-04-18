@@ -100,12 +100,29 @@ class AgentTurn(BaseModel):
     verdict: Optional[str] = None
 
 
+class ReallocationSuggestion(BaseModel):
+    available_headroom_hours: float
+    overflow_hours: float
+    can_absorb: bool
+    suggestion: str
+    # Logistics & cost detail
+    material_compatibility_pct: float   # % of source factory materials with active tooling at NW03
+    compatible_materials: int
+    total_materials: int
+    cost_delta_pct: float               # median % cost change (positive = NW03 costs more)
+    transport_lt_delta_days: float      # extra transport days vs current factory
+    source_grid_intensity: float        # gCO₂/kWh at source factory
+    target_grid_intensity: float        # gCO₂/kWh at NW03
+    carbon_delta_pct: float             # positive = NW03 emits more
+
+
 class AnalyzeResponse(BaseModel):
     agent1_result: Agent1Result
     agent2_verdict: Agent2Verdict
     per_work_center: list[WCLoadModel]
     debate_history: list[AgentTurn] = []
     status: str = "CONSENSUS"   # "CONSENSUS" | "CONTESTED" | "USER_OVERRIDE"
+    reallocation: Optional[ReallocationSuggestion] = None
 
 
 class ScenarioListResponse(BaseModel):
@@ -195,3 +212,175 @@ class GCIResponse(BaseModel):
 
 class MaterialListResponse(BaseModel):
     materials: list[dict]  # [{code, name}]
+
+
+# ---------------------------------------------------------------------------
+# Disaster simulation schemas
+# ---------------------------------------------------------------------------
+
+class DisasterRequest(BaseModel):
+    offline_factory: str
+    scenario: str
+    period: Optional[str] = None
+    duration_months: int = 1   # 1-12
+
+
+class DisasterAlternative(BaseModel):
+    plant: str
+    plant_name: str
+    materials_coverable: int
+    total_offline_materials: int
+    coverage_pct: float              # % of offline materials this plant can make
+    current_utilization: float
+    projected_utilization: float     # if all displaced demand routed here
+    capacity_headroom_hours: float
+    overloaded: bool                 # projected_utilization > 1.0
+    # Logistics & cost detail
+    cost_delta_pct: float            # median % cost change vs offline factory (compatible mats only)
+    transport_lt_delta_days: float   # extra transport days vs offline factory
+    grid_intensity: float            # gCO2/kWh at this plant
+    carbon_delta_pct: float          # vs offline factory (positive = higher emissions)
+
+
+class DisasterResult(BaseModel):
+    offline_factory: str
+    scenario: str
+    period: str
+    duration_months: int
+    displaced_hours: float           # total demand that needs rerouting
+    alternatives: list[DisasterAlternative]
+    network_coverage_pct: float      # % of demand the network can absorb
+    unabsorbable_hours: float
+    ai_insight: str
+
+
+# ---------------------------------------------------------------------------
+# Project Architect schemas
+# ---------------------------------------------------------------------------
+
+class ScenarioPathModel(BaseModel):
+    name: str
+    icon: str
+    plant: str
+    plant_name: str
+    region: str
+    mode: str
+    cost_eur: float
+    delivery_date: str
+    meets_deadline: bool
+    days_margin: int
+    grid_intensity: float
+    carbon_score: float
+    transport_lt_days: int
+    gci_score: float
+
+
+class ProjectArchitectRequest(BaseModel):
+    material_code: str
+    quantity: float = 1.0
+    deadline: Optional[str] = None
+
+
+class ProjectArchitectResponse(BaseModel):
+    material_code: str
+    material_name: str
+    quantity: float
+    deadline: Optional[str]
+    paths: list[ScenarioPathModel]
+
+
+class ConfirmProjectRequest(BaseModel):
+    material_code: str
+    material_name: str
+    quantity: float
+    deadline: Optional[str] = None
+    chosen_path: str
+    chosen_plant: str
+    cost_eur: float
+    delivery_date: str
+
+
+# ---------------------------------------------------------------------------
+# Project Simulation schemas (BOM explosion)
+# ---------------------------------------------------------------------------
+
+class RawMaterialStatusModel(BaseModel):
+    code: str
+    name: str
+    available_qty: float
+    needed_qty: float
+    sufficient: bool
+    unit: str
+
+
+class SimulationPathModel(BaseModel):
+    name: str
+    icon: str
+    plant: str
+    plant_name: str
+    mode: str
+    total_cost_eur: float
+    plate_cost: float
+    gasket_cost: float
+    shipping_cost: float
+    delivery_days: int
+    raw_material_lt_days: int
+    production_lt_days: int
+    logistics_lt_days: int
+    carbon_score: float
+    grid_intensity: float
+    scrap_factor: float
+
+
+class ProjectSimulationRequest(BaseModel):
+    plate_code: str
+    quantity: int = 1
+
+
+class ProjectSimulationResponse(BaseModel):
+    plate_code: str
+    plate_name: str
+    gasket_code: Optional[str]
+    gasket_name: str
+    quantity: int
+    feasible_plants: list[str]
+    raw_materials: list[RawMaterialStatusModel]
+    paths: list[SimulationPathModel]
+    warning: Optional[str]
+
+
+class ApproveProjectRequest(BaseModel):
+    plate_code: str
+    plate_name: str
+    gasket_code: Optional[str] = None
+    quantity: int
+    path_name: str
+    plant: str
+    mode: str
+    total_cost_eur: float
+    delivery_days: int
+    carbon_score: float
+
+
+# ---------------------------------------------------------------------------
+# Raw material ordering schemas
+# ---------------------------------------------------------------------------
+
+class RawMaterialItem(BaseModel):
+    code: str
+    name: str
+    unit: str
+    stock_qty: float
+
+
+class RawMaterialListResponse(BaseModel):
+    materials: list[RawMaterialItem]
+
+
+class RawMaterialOrderRequest(BaseModel):
+    material_code: str
+    material_name: str
+    unit: str
+    quantity: float
+    factory: str
+    deadline: Optional[str] = None
