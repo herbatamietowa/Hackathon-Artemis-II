@@ -1,4 +1,4 @@
-"""Test that numeric guard triggers fallback when Anthropic returns mutated values."""
+"""Test that numeric guard triggers fallback when Groq returns mutated values."""
 import json
 from unittest.mock import MagicMock, patch
 
@@ -22,21 +22,23 @@ _ENGINE_RESULT = CapacityPlanResult(
 )
 
 
-def _mock_response(agent_dict: dict):
-    """Build a mock Anthropic messages.create response that returns text JSON."""
-    text_block = MagicMock()
-    text_block.type = "text"
-    text_block.text = json.dumps(agent_dict)
+def _mock_completion(content: str):
+    """Build a mock openai chat completion response with no tool calls."""
+    msg = MagicMock()
+    msg.tool_calls = None
+    msg.content = content
+    choice = MagicMock()
+    choice.message = msg
     response = MagicMock()
-    response.content = [text_block]
+    response.choices = [choice]
     return response
 
 
 def test_correct_numerics_returns_non_fallback():
     good_dict = {**_ENGINE_RESULT.to_agent1_dict(), "reasoning": "All fine.", "fallback": False}
-    with patch("app.agents.agent1_capacity.ANTHROPIC_API_KEY", "fake-key"), \
-         patch("app.agents.agent1_capacity.anthropic.Anthropic") as mock_cls:
-        mock_cls.return_value.messages.create.return_value = _mock_response(good_dict)
+    with patch("app.agents.agent1_capacity.GROQ_API_KEY", "fake-key"), \
+         patch("app.agents.agent1_capacity.openai.OpenAI") as mock_cls:
+        mock_cls.return_value.chat.completions.create.return_value = _mock_completion(json.dumps(good_dict))
         result = run_agent1(_ENGINE_RESULT)
     assert result.fallback is False
     assert result.reasoning == "All fine."
@@ -44,26 +46,32 @@ def test_correct_numerics_returns_non_fallback():
 
 def test_mutated_utilization_triggers_fallback():
     mutated = {**_ENGINE_RESULT.to_agent1_dict(), "reasoning": "OK", "capacity_utilization": 0.99}
-    with patch("app.agents.agent1_capacity.ANTHROPIC_API_KEY", "fake-key"), \
-         patch("app.agents.agent1_capacity.anthropic.Anthropic") as mock_cls:
-        mock_cls.return_value.messages.create.return_value = _mock_response(mutated)
+    with patch("app.agents.agent1_capacity.GROQ_API_KEY", "fake-key"), \
+         patch("app.agents.agent1_capacity.openai.OpenAI") as mock_cls:
+        mock_cls.return_value.chat.completions.create.return_value = _mock_completion(json.dumps(mutated))
         result = run_agent1(_ENGINE_RESULT)
     assert result.fallback is True
     assert result.capacity_utilization == _ENGINE_RESULT.capacity_utilization
 
 
 def test_missing_api_key_triggers_fallback():
-    with patch("app.agents.agent1_capacity.ANTHROPIC_API_KEY", ""):
+    with patch("app.agents.agent1_capacity.GROQ_API_KEY", ""):
         result = run_agent1(_ENGINE_RESULT)
     assert result.fallback is True
 
 
 def test_api_error_triggers_fallback():
-    import anthropic
-    with patch("app.agents.agent1_capacity.ANTHROPIC_API_KEY", "fake-key"), \
-         patch("app.agents.agent1_capacity.anthropic.Anthropic") as mock_cls:
-        mock_cls.return_value.messages.create.side_effect = anthropic.APIError(
-            message="rate limit", request=MagicMock(), body={}
-        )
+    with patch("app.agents.agent1_capacity.GROQ_API_KEY", "fake-key"), \
+         patch("app.agents.agent1_capacity.openai.OpenAI") as mock_cls:
+        mock_cls.return_value.chat.completions.create.side_effect = openai_error()
         result = run_agent1(_ENGINE_RESULT)
     assert result.fallback is True
+
+
+def openai_error():
+    import openai
+    return openai.APIStatusError(
+        message="rate limit",
+        response=MagicMock(status_code=429, headers={}),
+        body={},
+    )

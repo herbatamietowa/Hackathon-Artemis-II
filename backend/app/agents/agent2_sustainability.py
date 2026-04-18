@@ -1,28 +1,36 @@
-"""Agent 2 — OpenAI SDK sustainability strategist.
+"""Agent 2 — Gemini 2.0 Flash via OpenAI-compatible SDK.
 
 Contract:
 - Receives Agent 1 JSON ONLY (no raw data access)
 - Returns Agent2Verdict with verdict / strategy / sustainability_recommendation
-- Retries on JSON parse failure (max 2 attempts)
-- Falls back to deterministic verdict if OpenAI unavailable or parse fails after retries
+- Retries with fallback model on parse failure
+- Falls back to deterministic verdict if Gemini unavailable
 """
 from __future__ import annotations
 import json
 import logging
+import re
 from pathlib import Path
 
 import openai
 
 from ..api.schemas import Agent1Result, Agent2Verdict
-from ..config import AGENT2_FALLBACK_MODEL, AGENT2_MODEL, BOTTLENECK_THRESHOLD, OPENAI_API_KEY
+from ..config import AGENT2_FALLBACK_MODEL, AGENT2_MODEL, BOTTLENECK_THRESHOLD, GEMINI_API_KEY, GEMINI_BASE_URL
 
 logger = logging.getLogger(__name__)
 
 _SYSTEM_PROMPT = (Path(__file__).parent / "prompts" / "agent2_system.md").read_text()
 
+# Gemini 2.0 Flash doesn't emit think tags, but strip them defensively
+_THINK_RE = re.compile(r"<think>.*?</think>", re.DOTALL)
+
+
+def _strip_think(text: str) -> str:
+    return _THINK_RE.sub("", text).strip()
+
 
 def _deterministic_verdict(agent1: Agent1Result) -> Agent2Verdict:
-    """Fallback: derive verdict from engine numbers without calling OpenAI."""
+    """Fallback: derive verdict from engine numbers without calling Gemini."""
     overloaded = (
         agent1.capacity_utilization >= BOTTLENECK_THRESHOLD
         or agent1.bottleneck_detected
@@ -57,26 +65,25 @@ def _deterministic_verdict(agent1: Agent1Result) -> Agent2Verdict:
 
 
 def run_agent2(agent1: Agent1Result) -> Agent2Verdict:
-    """Run Agent 2. Returns Agent2Verdict (fallback=True if OpenAI unavailable)."""
-    if not OPENAI_API_KEY:
+    """Run Agent 2 via Gemini. Returns Agent2Verdict (fallback=True if unavailable)."""
+    if not GEMINI_API_KEY:
         return _deterministic_verdict(agent1)
 
-    client = openai.OpenAI(api_key=OPENAI_API_KEY)
+    client = openai.OpenAI(api_key=GEMINI_API_KEY, base_url=GEMINI_BASE_URL)
     user_content = json.dumps(agent1.model_dump())
 
-    for attempt in range(2):
+    for attempt, model in enumerate([AGENT2_MODEL, AGENT2_FALLBACK_MODEL]):
         try:
-            model = AGENT2_MODEL if attempt == 0 else AGENT2_FALLBACK_MODEL
             response = client.chat.completions.create(
                 model=model,
                 messages=[
                     {"role": "system", "content": _SYSTEM_PROMPT},
                     {"role": "user", "content": user_content},
                 ],
-                max_completion_tokens=512,
+                max_tokens=512,
             )
-            raw = response.choices[0].message.content or ""
-            data = json.loads(raw.strip())
+            raw = _strip_think(response.choices[0].message.content or "")
+            data = json.loads(raw)
             return Agent2Verdict(
                 verdict=data["verdict"],
                 strategy=data["strategy"],
@@ -84,9 +91,9 @@ def run_agent2(agent1: Agent1Result) -> Agent2Verdict:
                 fallback=False,
             )
         except json.JSONDecodeError as exc:
-            logger.warning("Agent 2 JSON parse error (attempt %d): %s", attempt + 1, exc)
+            logger.warning("Agent 2 JSON parse error (attempt %d, model=%s): %s", attempt + 1, model, exc)
         except openai.APIError as exc:
-            logger.warning("Agent 2 OpenAI API error (attempt %d): %s", attempt + 1, exc)
+            logger.warning("Agent 2 Gemini API error (attempt %d, model=%s): %s", attempt + 1, model, exc)
             break
         except Exception as exc:
             logger.exception("Agent 2 unexpected error: %s", exc)

@@ -2,8 +2,6 @@
 import json
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from app.agents.agent2_sustainability import run_agent2
 from app.api.schemas import Agent1Result
 
@@ -33,7 +31,7 @@ _GOOD_RESPONSE = json.dumps({
 
 def test_agent2_never_reads_excel():
     """pd.read_excel must never be called inside run_agent2."""
-    with patch("app.agents.agent2_sustainability.OPENAI_API_KEY", "fake-key"), \
+    with patch("app.agents.agent2_sustainability.GEMINI_API_KEY", "fake-key"), \
          patch("app.agents.agent2_sustainability.openai.OpenAI") as mock_cls, \
          patch("pandas.read_excel") as mock_read_excel:
         choice = MagicMock()
@@ -44,7 +42,7 @@ def test_agent2_never_reads_excel():
 
 
 def test_agent2_returns_valid_verdict():
-    with patch("app.agents.agent2_sustainability.OPENAI_API_KEY", "fake-key"), \
+    with patch("app.agents.agent2_sustainability.GEMINI_API_KEY", "fake-key"), \
          patch("app.agents.agent2_sustainability.openai.OpenAI") as mock_cls:
         choice = MagicMock()
         choice.message.content = _GOOD_RESPONSE
@@ -55,14 +53,14 @@ def test_agent2_returns_valid_verdict():
 
 
 def test_agent2_falls_back_when_no_key():
-    with patch("app.agents.agent2_sustainability.OPENAI_API_KEY", ""):
+    with patch("app.agents.agent2_sustainability.GEMINI_API_KEY", ""):
         result = run_agent2(_AGENT1_FIXTURE)
     assert result.fallback is True
     assert result.verdict in ("APPROVED", "CORRECTED")
 
 
 def test_agent2_falls_back_on_bad_json():
-    with patch("app.agents.agent2_sustainability.OPENAI_API_KEY", "fake-key"), \
+    with patch("app.agents.agent2_sustainability.GEMINI_API_KEY", "fake-key"), \
          patch("app.agents.agent2_sustainability.openai.OpenAI") as mock_cls:
         choice = MagicMock()
         choice.message.content = "not json at all"

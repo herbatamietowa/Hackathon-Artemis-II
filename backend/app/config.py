@@ -1,14 +1,18 @@
 import os
 from pathlib import Path
 
-ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
-OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
+# Agent 1 — Groq (free, LPU-accelerated, ~1-2s inference)
+GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
+GROQ_BASE_URL: str = "https://api.groq.com/openai/v1"
+AGENT1_MODEL: str = "llama-3.3-70b-versatile"  # best tool-calling model on Groq
+
+# Agent 2 — Gemini (free tier, strong reasoning)
+GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
+GEMINI_BASE_URL: str = "https://generativelanguage.googleapis.com/v1beta/openai/"
+AGENT2_MODEL: str = "gemini-2.0-flash"
+AGENT2_FALLBACK_MODEL: str = "gemini-1.5-flash"
 
 DATA_PATH: Path = Path(os.getenv("DATA_PATH", "/data/hackathon_dataset.xlsx"))
-
-AGENT1_MODEL: str = "claude-haiku-4-5-20251001"
-AGENT2_MODEL: str = "o4-mini"
-AGENT2_FALLBACK_MODEL: str = "o3"
 
 BOTTLENECK_THRESHOLD: float = 0.90
 HIGH_PROB_THRESHOLD: float = 0.75   # min probability (%) for high_prob_only scenario
