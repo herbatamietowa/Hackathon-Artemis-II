@@ -351,3 +351,27 @@ class ApproveProjectRequest(BaseModel):
     total_cost_eur: float
     delivery_days: int
     carbon_score: float
+
+
+# ---------------------------------------------------------------------------
+# Raw material ordering schemas
+# ---------------------------------------------------------------------------
+
+class RawMaterialItem(BaseModel):
+    code: str
+    name: str
+    unit: str
+    stock_qty: float
+
+
+class RawMaterialListResponse(BaseModel):
+    materials: list[RawMaterialItem]
+
+
+class RawMaterialOrderRequest(BaseModel):
+    material_code: str
+    material_name: str
+    unit: str
+    quantity: float
+    factory: str
+    deadline: Optional[str] = None

@@ -23,6 +23,9 @@ from .schemas import (
     ProjectArchitectResponse,
     ProjectSimulationRequest,
     ProjectSimulationResponse,
+    RawMaterialItem,
+    RawMaterialListResponse,
+    RawMaterialOrderRequest,
     RawMaterialStatusModel,
     ReallocationSuggestion,
     ScenarioListResponse,
@@ -307,6 +310,76 @@ def simulate_project(req: ProjectSimulationRequest) -> ProjectSimulationResponse
     except Exception as exc:
         logger.exception("simulate-project error: %s", exc)
         raise HTTPException(status_code=500, detail=str(exc))
+
+
+@router.get("/raw-materials", response_model=RawMaterialListResponse)
+def list_raw_materials() -> RawMaterialListResponse:
+    """Return component (raw) materials from BOM with current stock totals."""
+    try:
+        df32 = pd.read_excel(DATA_PATH, sheet_name="3_2 Component_SF_RM")
+        df31 = pd.read_excel(DATA_PATH, sheet_name="3_1 Inventory ATP")
+
+        rm_df = (
+            df32[["Component Material code", "Component Description", "Component BUoM"]]
+            .rename(columns={
+                "Component Material code": "code",
+                "Component Description": "name",
+                "Component BUoM": "unit",
+            })
+            .drop_duplicates("code")
+            .dropna(subset=["code"])
+        )
+        rm_df["code"] = rm_df["code"].astype(str).str.strip()
+        rm_df["name"] = rm_df["name"].fillna(rm_df["code"]).astype(str)
+        rm_df["unit"] = rm_df["unit"].fillna("PC").astype(str)
+        rm_df = rm_df[rm_df["code"] != ""]
+
+        stock_col = next((c for c in df31.columns if "Material Unique" in c and "code" in c.lower()), None)
+        stock_map: dict = {}
+        if stock_col and "Stock Qty" in df31.columns:
+            stock_map = df31.groupby(stock_col)["Stock Qty"].sum().to_dict()
+
+        materials = [
+            RawMaterialItem(
+                code=row["code"],
+                name=row["name"],
+                unit=row["unit"],
+                stock_qty=float(stock_map.get(row["code"], 0.0)),
+            )
+            for _, row in rm_df.sort_values("code").iterrows()
+        ]
+        return RawMaterialListResponse(materials=materials)
+    except Exception as exc:
+        logger.warning("Could not load raw materials: %s", exc)
+        return RawMaterialListResponse(materials=[])
+
+
+@router.post("/order-raw-material")
+def order_raw_material(req: RawMaterialOrderRequest) -> dict:
+    import csv
+    from datetime import datetime
+    log_path = DATA_PATH.parent / "raw_material_orders.csv"
+    order_id = f"RM-{int(datetime.utcnow().timestamp())}"
+    row = {
+        "order_id": order_id,
+        "timestamp": datetime.utcnow().isoformat(),
+        "material_code": req.material_code,
+        "material_name": req.material_name,
+        "unit": req.unit,
+        "quantity": req.quantity,
+        "factory": req.factory,
+        "deadline": req.deadline or "",
+    }
+    try:
+        write_header = not log_path.exists()
+        with open(log_path, "a", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=list(row.keys()))
+            if write_header:
+                writer.writeheader()
+            writer.writerow(row)
+    except Exception as exc:
+        logger.warning("Could not write raw material order: %s", exc)
+    return {"status": "ordered", "order_id": order_id}
 
 
 @router.post("/approve-project")

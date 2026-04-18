@@ -2,6 +2,12 @@ import { useState } from 'react';
 import { api } from '../api/client';
 import type { DisasterAlternative, DisasterResult } from '../types';
 
+const SCENARIO_LABELS: Record<string, string> = {
+  high_prob_only: 'Guaranteed Floor',
+  probability_weighted: 'Realistic Forecast',
+  '100_pct': 'Full Pipeline Stress-Test',
+};
+
 interface Props {
   factories: string[];
   scenarios: string[];
@@ -76,8 +82,8 @@ function AlternativeCard({ alt }: { alt: DisasterAlternative }) {
           <div style={{ fontSize: 15, fontWeight: 700, color: '#111827' }}>{alt.capacity_headroom_hours.toFixed(0)}h</div>
         </div>
         <UtilBar before={alt.current_utilization} after={alt.projected_utilization} />
-        <DeltaPill value={alt.cost_delta_pct}            unit="%" label="Cost Δ" />
-        <DeltaPill value={alt.transport_lt_delta_days}   unit="d" label="LT Δ" />
+        <DeltaPill value={alt.cost_delta_pct}          unit="%" label="Cost Δ" />
+        <DeltaPill value={alt.transport_lt_delta_days}  unit="d" label="LT Δ"  />
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontSize: 10, color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase' }}>Grid</div>
           <div style={{ fontSize: 13, fontWeight: 700, color: alt.grid_intensity > 0.5 ? '#f97316' : alt.grid_intensity < 0.3 ? '#22c55e' : '#6b7280' }}>
@@ -118,33 +124,48 @@ export function DisasterPanel({ factories, scenarios }: Props) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {/* Warning header */}
+
+      {/* Explainer header */}
       <div style={{
         background: '#fff5f5', border: '1px solid #fca5a5',
-        borderRadius: 8, padding: '12px 16px',
-        display: 'flex', gap: 10, alignItems: 'center',
+        borderRadius: 10, padding: '16px 20px',
       }}>
-        <span style={{ fontSize: 22 }}>🔴</span>
-        <div>
-          <p style={{ margin: 0, fontWeight: 700, color: '#991b1b', fontSize: 14 }}>Disruption Scenario Simulator</p>
-          <p style={{ margin: 0, fontSize: 13, color: '#7f1d1d' }}>
-            Model the impact of a factory going offline and see how the rest of the network responds.
-          </p>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+          <span style={{ fontSize: 28, flexShrink: 0 }}>🔴</span>
+          <div>
+            <p style={{ margin: '0 0 4px', fontWeight: 800, color: '#991b1b', fontSize: 15 }}>
+              Disruption Scenario Simulator
+            </p>
+            <p style={{ margin: '0 0 10px', fontSize: 13, color: '#7f1d1d', lineHeight: 1.5 }}>
+              Simulate what happens if a factory goes fully offline. The tool redistributes its demand across the rest of the network and shows you which plants can absorb the load, which would overload, and by how much costs and lead times would shift.
+            </p>
+            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+              <Tip icon="🏭" text="Pick the factory to take offline" />
+              <Tip icon="📊" text="Choose a demand scenario" />
+              <Tip icon="📅" text="Set the outage length" />
+              <Tip icon="▶" text="Hit Simulate to see the impact" />
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Controls */}
-      <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 8, padding: 16 }}>
+      <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 10, padding: '16px 20px' }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: '#374151', textTransform: 'uppercase', marginBottom: 14 }}>
+          Simulation Parameters
+        </div>
         <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+
           {/* Offline factory */}
           <div>
-            <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#6b7280', marginBottom: 4, textTransform: 'uppercase' }}>
-              Offline Factory
+            <label style={ctrlLbl}>
+              🏭 Factory to take offline
             </label>
+            <p style={ctrlHint}>Which plant goes down?</p>
             <select
               value={offlineFactory}
               onChange={e => setOfflineFactory(e.target.value)}
-              style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13 }}
+              style={ctrlSel}
             >
               {factories.map(f => <option key={f} value={f}>{f}</option>)}
             </select>
@@ -152,30 +173,35 @@ export function DisasterPanel({ factories, scenarios }: Props) {
 
           {/* Scenario */}
           <div>
-            <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#6b7280', marginBottom: 4, textTransform: 'uppercase' }}>
-              Demand Scenario
+            <label style={ctrlLbl}>
+              📊 Demand scenario
             </label>
+            <p style={ctrlHint}>How much demand should we plan for?</p>
             <select
               value={scenario}
               onChange={e => setScenario(e.target.value)}
-              style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13 }}
+              style={ctrlSel}
             >
-              {scenarios.map(s => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}
+              {scenarios.map(s => (
+                <option key={s} value={s}>{SCENARIO_LABELS[s] ?? s.replace(/_/g, ' ')}</option>
+              ))}
             </select>
           </div>
 
           {/* Duration */}
-          <div style={{ flex: 1, minWidth: 200 }}>
-            <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#6b7280', marginBottom: 4, textTransform: 'uppercase' }}>
-              Outage Duration — <strong style={{ color: '#111827' }}>{duration} month{duration > 1 ? 's' : ''}</strong>
+          <div style={{ flex: 1, minWidth: 220 }}>
+            <label style={ctrlLbl}>
+              📅 Outage duration —{' '}
+              <strong style={{ color: '#111827' }}>{duration} month{duration > 1 ? 's' : ''}</strong>
             </label>
+            <p style={ctrlHint}>How long will the factory be offline?</p>
             <input
               type="range" min={1} max={12} step={1} value={duration}
               onChange={e => setDuration(Number(e.target.value))}
-              style={{ width: '100%', accentColor: '#ef4444' }}
+              style={{ width: '100%', accentColor: '#dc2626', marginTop: 4 }}
             />
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#d1d5db' }}>
-              <span>1 month</span><span>12 months</span>
+              <span>1 month</span><span>6 months</span><span>12 months</span>
             </div>
           </div>
 
@@ -183,12 +209,14 @@ export function DisasterPanel({ factories, scenarios }: Props) {
             onClick={run}
             disabled={loading}
             style={{
-              padding: '7px 20px', borderRadius: 6, border: 'none',
-              background: '#dc2626', color: '#fff', fontSize: 14, fontWeight: 600,
-              cursor: 'pointer', height: 36,
+              padding: '9px 24px', borderRadius: 8, border: 'none',
+              background: loading ? '#fca5a5' : '#dc2626',
+              color: '#fff', fontSize: 14, fontWeight: 700,
+              cursor: loading ? 'default' : 'pointer', height: 40,
+              display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0,
             }}
           >
-            {loading ? 'Simulating…' : 'Simulate'}
+            {loading ? '⏳ Simulating…' : '▶ Simulate'}
           </button>
         </div>
       </div>
@@ -201,24 +229,26 @@ export function DisasterPanel({ factories, scenarios }: Props) {
 
       {result && (
         <>
-          {/* Summary */}
+          {/* Summary cards */}
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
             <SummaryCard
               label="Displaced Demand"
               value={`${result.displaced_hours.toFixed(0)}h`}
-              sub={`over ${result.duration_months} month${result.duration_months > 1 ? 's' : ''}`}
+              sub={`production hours lost over ${result.duration_months} month${result.duration_months > 1 ? 's' : ''}`}
               color="#374151"
             />
             <SummaryCard
               label="Network Coverage"
               value={`${result.network_coverage_pct.toFixed(0)}%`}
-              sub={result.network_coverage_pct >= 100 ? 'fully absorbable' : `${result.unabsorbable_hours.toFixed(0)}h unserviceable`}
+              sub={result.network_coverage_pct >= 100
+                ? '✓ Demand fully absorbable by other plants'
+                : `${result.unabsorbable_hours.toFixed(0)}h cannot be covered — shortfall risk`}
               color={coverageColor}
             />
             <SummaryCard
               label="Alternatives Found"
               value={String(result.alternatives.length)}
-              sub={`${result.alternatives.filter(a => !a.overloaded).length} without overloading`}
+              sub={`${result.alternatives.filter(a => !a.overloaded).length} plants can absorb without overloading`}
               color="#2563eb"
             />
           </div>
@@ -236,21 +266,30 @@ export function DisasterPanel({ factories, scenarios }: Props) {
                 transition: 'width 0.5s ease',
               }} />
             </div>
+            <p style={{ margin: '6px 0 0', fontSize: 11, color: '#9ca3af' }}>
+              Shows what percentage of the offline factory's demand the rest of the network can absorb.
+              100% = no shortfall.
+            </p>
           </div>
 
           {/* AI Insight */}
-          <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 8, padding: '12px 16px' }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#0369a1', textTransform: 'uppercase', marginBottom: 6 }}>
-              Network Analysis
+          <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 8, padding: '14px 18px' }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#0369a1', textTransform: 'uppercase', marginBottom: 8 }}>
+              🧠 Network Analysis
             </div>
-            <p style={{ margin: 0, fontSize: 13, color: '#0c4a6e', lineHeight: 1.6 }}>{result.ai_insight}</p>
+            <p style={{ margin: 0, fontSize: 13, color: '#0c4a6e', lineHeight: 1.7 }}>{result.ai_insight}</p>
           </div>
 
           {/* Alternative cards */}
           <div>
-            <p style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 600, color: '#374151' }}>
-              Alternative plants (ranked by available headroom)
-            </p>
+            <div style={{ marginBottom: 10 }}>
+              <p style={{ margin: '0 0 2px', fontSize: 14, fontWeight: 700, color: '#374151' }}>
+                Alternative plants — ranked by available headroom
+              </p>
+              <p style={{ margin: 0, fontSize: 12, color: '#9ca3af' }}>
+                Each row shows how much spare capacity a plant has and what happens to cost, lead time, and carbon if demand is rerouted there.
+              </p>
+            </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {result.alternatives.map(alt => (
                 <AlternativeCard key={alt.plant} alt={alt} />
@@ -262,9 +301,18 @@ export function DisasterPanel({ factories, scenarios }: Props) {
 
       {!result && !loading && (
         <div style={{ textAlign: 'center', padding: '48px 0', color: '#9ca3af', fontSize: 14 }}>
-          Select a factory, scenario, and outage duration, then click Simulate.
+          Configure the parameters above and click <strong style={{ color: '#dc2626' }}>▶ Simulate</strong> to model the disruption.
         </div>
       )}
+    </div>
+  );
+}
+
+function Tip({ icon, text }: { icon: string; text: string }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#991b1b' }}>
+      <span>{icon}</span>
+      <span>{text}</span>
     </div>
   );
 }
@@ -272,13 +320,23 @@ export function DisasterPanel({ factories, scenarios }: Props) {
 function SummaryCard({ label, value, sub, color }: { label: string; value: string; sub: string; color: string }) {
   return (
     <div style={{
-      flex: 1, minWidth: 140,
+      flex: 1, minWidth: 160,
       background: '#fff', border: '1px solid #e5e7eb',
-      borderRadius: 8, padding: '12px 16px', textAlign: 'center',
+      borderRadius: 8, padding: '14px 16px', textAlign: 'center',
     }}>
       <div style={{ fontSize: 11, color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', marginBottom: 4 }}>{label}</div>
-      <div style={{ fontSize: 24, fontWeight: 800, color }}>{value}</div>
-      <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{sub}</div>
+      <div style={{ fontSize: 26, fontWeight: 800, color }}>{value}</div>
+      <div style={{ fontSize: 11, color: '#6b7280', marginTop: 4, lineHeight: 1.4 }}>{sub}</div>
     </div>
   );
 }
+
+const ctrlLbl: React.CSSProperties = {
+  display: 'block', fontSize: 12, fontWeight: 700, color: '#374151', marginBottom: 2,
+};
+const ctrlHint: React.CSSProperties = {
+  margin: '0 0 6px', fontSize: 11, color: '#9ca3af',
+};
+const ctrlSel: React.CSSProperties = {
+  padding: '6px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13,
+};

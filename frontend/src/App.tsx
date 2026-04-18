@@ -12,9 +12,16 @@ import { ProjectSimulator } from './components/ProjectSimulator';
 import { ReallocationBanner } from './components/ReallocationBanner';
 import { ScenarioSelector } from './components/ScenarioSelector';
 import { SourcingPanel } from './components/SourcingPanel';
-import type { AnalyzeResponse, MaterialOption, SourcingResponse } from './types';
+import type { AnalyzeResponse, MaterialOption, RawMaterialItem, SourcingResponse } from './types';
+// RawMaterialItem used in useState generic below
 
 type Tab = 'project' | 'order' | 'pulse' | 'stream' | 'disaster';
+
+const SCENARIO_LABELS: Record<string, string> = {
+  high_prob_only: 'Guaranteed Floor',
+  probability_weighted: 'Realistic Forecast',
+  '100_pct': 'Full Pipeline Stress-Test',
+};
 
 const PRINT_STYLES = `
 @media print {
@@ -34,9 +41,14 @@ export default function App() {
   const [scenarios, setScenarios] = useState<string[]>(['100_pct', 'probability_weighted', 'high_prob_only']);
   const [materials, setMaterials] = useState<MaterialOption[]>([]);
   const [plates, setPlates] = useState<MaterialOption[]>([]);
+  const [rawMaterials, setRawMaterials] = useState<RawMaterialItem[]>([]);
   const [factory, setFactory] = useState('NW01');
   const [scenario, setScenario] = useState('probability_weighted');
   const [tab, setTab] = useState<Tab>('project');
+  const [preselectedMaterial, setPreselectedMaterial] = useState<string | undefined>();
+  const [preselectedQty, setPreselectedQty] = useState<number | undefined>();
+  const [preselectedUnit, setPreselectedUnit] = useState<string | undefined>();
+  const [preselectedDeadline, setPreselectedDeadline] = useState<string | undefined>();
 
   const [loadingCapacity, setLoadingCapacity] = useState(false);
   const [loadingSourcing, setLoadingSourcing] = useState(false);
@@ -50,9 +62,10 @@ export default function App() {
     api.scenarios().then(r => setScenarios(r.scenarios)).catch(() => {});
     api.materials().then(r => setMaterials(r.materials)).catch(() => {});
     api.plates().then(r => setPlates(r.materials)).catch(() => {});
+    api.rawMaterials().then(r => setRawMaterials(r.materials)).catch(() => {});
   }, []);
 
-  // Auto-run capacity analysis whenever Factory Pulse tab is active and inputs change
+  // Auto-run capacity analysis when Factory Pulse tab is active
   useEffect(() => {
     if (tab !== 'pulse') return;
     let cancelled = false;
@@ -69,7 +82,7 @@ export default function App() {
     return () => { cancelled = true; };
   }, [factory, scenario, tab]);
 
-  // Auto-run sourcing analysis whenever Supply Stream tab is active and inputs change
+  // Auto-run sourcing analysis when Raw Material Needs tab is active
   useEffect(() => {
     if (tab !== 'stream') return;
     let cancelled = false;
@@ -81,6 +94,14 @@ export default function App() {
       .finally(() => { if (!cancelled) setLoadingSourcing(false); });
     return () => { cancelled = true; };
   }, [factory, scenario, tab]);
+
+  const handleOrderMaterial = (code: string, _name: string, qty: number, unit: string, deadline: string) => {
+    setPreselectedMaterial(code);
+    setPreselectedQty(qty);
+    setPreselectedUnit(unit);
+    setPreselectedDeadline(deadline);
+    setTab('order');
+  };
 
   const loading = tab === 'pulse' ? loadingCapacity : tab === 'stream' ? loadingSourcing : false;
   const hasResults = (tab === 'pulse' && !!capacityResult) || (tab === 'stream' && !!sourcingResult);
@@ -121,7 +142,7 @@ export default function App() {
       <div className="print-header" style={{ marginBottom: 20, borderBottom: '1px solid #e5e7eb', paddingBottom: 12 }}>
         <p style={{ margin: 0, fontSize: 13, color: '#374151' }}>
           <strong>Factory:</strong> {factory} &nbsp;·&nbsp;
-          <strong>Scenario:</strong> {scenario.replace(/_/g, ' ')} &nbsp;·&nbsp;
+          <strong>Scenario:</strong> {SCENARIO_LABELS[scenario] ?? scenario.replace(/_/g, ' ')} &nbsp;·&nbsp;
           <strong>Generated:</strong> {new Date().toLocaleString()}
         </p>
       </div>
@@ -153,19 +174,19 @@ export default function App() {
       {/* Tab bar */}
       <div className="no-print" style={{ display: 'flex', gap: 0, borderBottom: '2px solid #e5e7eb', marginBottom: 20 }}>
         <TabButton active={tab === 'project'} onClick={() => setTab('project')}>
-          New Project
+          🔩 New Project
         </TabButton>
         <TabButton active={tab === 'order'} onClick={() => setTab('order')}>
-          Order Materials
+          📦 Order Materials
         </TabButton>
         <TabButton active={tab === 'pulse'} onClick={() => setTab('pulse')}>
-          Factory Pulse
+          📊 Factory Pulse
         </TabButton>
         <TabButton active={tab === 'stream'} onClick={() => setTab('stream')}>
-          Supply Stream
+          🚚 Raw Material Needs
         </TabButton>
         <TabButton active={tab === 'disaster'} onClick={() => setTab('disaster')} danger>
-          Disruption Sim
+          🔴 Disruption Sim
         </TabButton>
       </div>
 
@@ -180,23 +201,44 @@ export default function App() {
         </div>
       )}
 
-      {/* New Project (BOM explosion simulation) */}
-      {tab === 'project' && <ProjectSimulator plates={plates} />}
+      {/* New Project */}
+      {tab === 'project' && <ProjectSimulator plates={plates} gaskets={materials} />}
 
-      {/* Order Materials (GCI-based scenario optimiser) */}
-      {tab === 'order' && <ProjectArchitect materials={materials} />}
+      {/* Order Materials */}
+      {tab === 'order' && (
+        <ProjectArchitect
+          rawMaterials={rawMaterials}
+          factories={factories}
+          initialMaterial={preselectedMaterial}
+          initialQty={preselectedQty}
+          initialUnit={preselectedUnit}
+          initialDeadline={preselectedDeadline}
+        />
+      )}
 
-      {/* Factory Pulse (capacity analysis — auto-loads) */}
+      {/* Factory Pulse */}
       {capacityResult && !loadingCapacity && (
         <div
           className="print-section"
           style={{ display: tab === 'pulse' ? 'flex' : 'none', flexDirection: 'column', gap: 16 }}
         >
+          {/* Explainer */}
+          <div style={{
+            background: 'linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%)',
+            borderRadius: 10, padding: '14px 20px', color: '#fff',
+          }}>
+            <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 4 }}>📊 Factory Pulse — Capacity Analysis</div>
+            <p style={{ margin: 0, fontSize: 13, opacity: 0.8, lineHeight: 1.5 }}>
+              Shows how loaded each work center (press, extrusion, assembly, etc.) is against available capacity.
+              Green = comfortable, amber = near limit, red = overloaded. Bottlenecks are highlighted automatically.
+            </p>
+          </div>
+
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
             <span style={{ fontSize: 13, color: '#6b7280' }}>
-              <strong style={{ color: '#111827', fontSize: 15 }}>Capacity Analysis</strong>
-              {' — '}
-              {capacityResult.agent1_result.factory} · {capacityResult.agent1_result.period} · Overall utilization:{' '}
+              <strong style={{ color: '#111827', fontSize: 15 }}>{capacityResult.agent1_result.factory}</strong>
+              {' · '}{capacityResult.agent1_result.period}
+              {' · '}Overall utilization:{' '}
               <strong style={{ color: '#111827' }}>
                 {(capacityResult.agent1_result.capacity_utilization * 100).toFixed(1)}%
               </strong>
@@ -216,19 +258,32 @@ export default function App() {
         </div>
       )}
 
-      {/* Supply Stream (sourcing analysis — auto-loads) */}
+      {/* Raw Material Needs */}
       {sourcingResult && !loadingSourcing && (
         <div
           className="print-section"
           style={{ display: tab === 'stream' ? 'flex' : 'none', flexDirection: 'column', gap: 12 }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: 15, fontWeight: 700, color: '#111827' }}>Sourcing Analysis</span>
-            <span style={{ fontSize: 13, color: '#6b7280' }}>
-              {sourcingResult.factory} · {sourcingResult.period} · {sourcingResult.scenario.replace(/_/g, ' ')}
-            </span>
+          {/* Explainer */}
+          <div style={{
+            background: 'linear-gradient(135deg, #0f3460 0%, #0369a1 100%)',
+            borderRadius: 10, padding: '14px 20px', color: '#fff',
+          }}>
+            <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 4 }}>🚚 Raw Material Needs</div>
+            <p style={{ margin: 0, fontSize: 13, opacity: 0.8, lineHeight: 1.5 }}>
+              Based on the current operations plan and demand scenario, these are the raw materials that need to be ordered.
+              Each card shows when you must place the order to meet production deadlines.
+              Click <strong>📦 Order</strong> to jump directly to Order Materials with that material pre-selected.
+            </p>
           </div>
-          <SourcingPanel data={sourcingResult} />
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 15, fontWeight: 700, color: '#111827' }}>
+              {sourcingResult.factory} · {SCENARIO_LABELS[sourcingResult.scenario] ?? sourcingResult.scenario.replace(/_/g, ' ')}
+            </span>
+            <span style={{ fontSize: 13, color: '#6b7280' }}>{sourcingResult.period}</span>
+          </div>
+          <SourcingPanel data={sourcingResult} onOrder={handleOrderMaterial} />
         </div>
       )}
 
@@ -247,16 +302,18 @@ function TabButton({ active, onClick, children, danger }: {
   const accent = danger ? '#dc2626' : '#2563eb';
   return (
     <button onClick={onClick} style={{
-      padding: '8px 18px',
+      padding: '8px 16px',
       border: 'none',
       borderBottom: active ? `2px solid ${accent}` : '2px solid transparent',
       marginBottom: -2,
-      background: 'none',
+      background: active ? (danger ? '#fff5f5' : '#eff6ff') : 'none',
       fontSize: 13,
-      fontWeight: active ? 600 : 400,
+      fontWeight: active ? 700 : 400,
       color: active ? accent : '#6b7280',
       cursor: 'pointer',
       whiteSpace: 'nowrap',
+      borderRadius: active ? '6px 6px 0 0' : 0,
+      transition: 'background 0.15s, color 0.15s',
     }}>
       {children}
     </button>

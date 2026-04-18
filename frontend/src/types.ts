@@ -253,6 +253,22 @@ export interface ProjectSimulationRequest {
   quantity: number;
 }
 
+export interface RawMaterialItem {
+  code: string;
+  name: string;
+  unit: string;
+  stock_qty: number;
+}
+
+export interface RawMaterialOrderRequest {
+  material_code: string;
+  material_name: string;
+  unit: string;
+  quantity: number;
+  factory: string;
+  deadline?: string;
+}
+
 export interface ApproveProjectRequest {
   plate_code: string;
   plate_name: string;

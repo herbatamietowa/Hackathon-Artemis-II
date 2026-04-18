@@ -137,33 +137,63 @@
   },
   "hotPaths": [
     {
-      "path": "backend\\app\\api\\routes.py",
-      "accessCount": 5,
-      "lastAccessed": 1776538799939,
-      "type": "file"
-    },
-    {
-      "path": "frontend\\src\\api\\client.ts",
-      "accessCount": 5,
-      "lastAccessed": 1776538818624,
-      "type": "file"
-    },
-    {
-      "path": "backend\\app\\api\\schemas.py",
-      "accessCount": 3,
-      "lastAccessed": 1776538778119,
+      "path": "frontend\\src\\components\\ProjectSimulator.tsx",
+      "accessCount": 20,
+      "lastAccessed": 1776546667061,
       "type": "file"
     },
     {
       "path": "frontend\\src\\App.tsx",
-      "accessCount": 3,
-      "lastAccessed": 1776538919021,
+      "accessCount": 17,
+      "lastAccessed": 1776548168230,
+      "type": "file"
+    },
+    {
+      "path": "backend\\app\\api\\routes.py",
+      "accessCount": 9,
+      "lastAccessed": 1776548055131,
+      "type": "file"
+    },
+    {
+      "path": "frontend\\src\\api\\client.ts",
+      "accessCount": 9,
+      "lastAccessed": 1776548071291,
+      "type": "file"
+    },
+    {
+      "path": "frontend\\src\\components\\SourcingPanel.tsx",
+      "accessCount": 9,
+      "lastAccessed": 1776548121872,
+      "type": "file"
+    },
+    {
+      "path": "frontend\\src\\components\\ProjectArchitect.tsx",
+      "accessCount": 7,
+      "lastAccessed": 1776548114366,
+      "type": "file"
+    },
+    {
+      "path": "backend\\app\\api\\schemas.py",
+      "accessCount": 5,
+      "lastAccessed": 1776548030841,
       "type": "file"
     },
     {
       "path": "frontend\\src\\types.ts",
-      "accessCount": 2,
-      "lastAccessed": 1776538808274,
+      "accessCount": 5,
+      "lastAccessed": 1776548060189,
+      "type": "file"
+    },
+    {
+      "path": "frontend\\src\\components\\ScenarioSelector.tsx",
+      "accessCount": 3,
+      "lastAccessed": 1776544594859,
+      "type": "file"
+    },
+    {
+      "path": "frontend\\src\\components\\DisasterPanel.tsx",
+      "accessCount": 3,
+      "lastAccessed": 1776544864756,
       "type": "file"
     },
     {
@@ -185,21 +215,57 @@
       "type": "file"
     },
     {
-      "path": "frontend\\src\\components\\ProjectArchitect.tsx",
-      "accessCount": 1,
-      "lastAccessed": 1776536133223,
-      "type": "file"
-    },
-    {
       "path": "backend\\app\\engine\\project_simulation.py",
       "accessCount": 1,
       "lastAccessed": 1776538767983,
       "type": "file"
     },
     {
-      "path": "frontend\\src\\components\\ProjectSimulator.tsx",
+      "path": "frontend\\src\\components\\FactorySelector.tsx",
       "accessCount": 1,
-      "lastAccessed": 1776538876965,
+      "lastAccessed": 1776544271991,
+      "type": "file"
+    },
+    {
+      "path": "frontend\\src\\components\\Agent2Panel.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1776544276736,
+      "type": "file"
+    },
+    {
+      "path": "frontend\\src\\components\\CapacityChart.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1776544277293,
+      "type": "file"
+    },
+    {
+      "path": "frontend\\src\\components\\BottleneckAlert.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1776544277408,
+      "type": "file"
+    },
+    {
+      "path": "frontend\\src\\components\\GCIPanel.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1776544281136,
+      "type": "file"
+    },
+    {
+      "path": "frontend\\src\\components\\LoadingState.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1776544281382,
+      "type": "file"
+    },
+    {
+      "path": "frontend\\src\\components\\ReallocationBanner.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1776544281805,
+      "type": "file"
+    },
+    {
+      "path": "frontend\\src\\components\\DataQualityBadge.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1776544281912,
       "type": "file"
     }
   ],
