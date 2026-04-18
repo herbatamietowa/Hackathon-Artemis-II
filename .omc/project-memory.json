@@ -1,0 +1,273 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1776535451170,
+  "projectRoot": "c:\\Users\\Olga\\Documents\\uni\\semester4\\hackathon\\Hackathon-Artemis-II",
+  "techStack": {
+    "languages": [
+      {
+        "name": "Python",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "requirements.txt"
+        ]
+      }
+    ],
+    "frameworks": [],
+    "packageManager": "pip",
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": null,
+    "testCommand": null,
+    "lintCommand": null,
+    "devCommand": null,
+    "scripts": {}
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [
+      "scripts"
+    ],
+    "gitBranches": {
+      "defaultBranch": "main",
+      "branchingStrategy": null
+    }
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "backend": {
+      "path": "backend",
+      "purpose": null,
+      "fileCount": 2,
+      "lastAccessed": 1776535451154,
+      "keyFiles": [
+        "Dockerfile",
+        "requirements.txt"
+      ]
+    },
+    "data": {
+      "path": "data",
+      "purpose": "Data files",
+      "fileCount": 2,
+      "lastAccessed": 1776535451155,
+      "keyFiles": [
+        "Data_Dictionary_overview.xlsx",
+        "hackathon_dataset.xlsx"
+      ]
+    },
+    "frontend": {
+      "path": "frontend",
+      "purpose": null,
+      "fileCount": 7,
+      "lastAccessed": 1776535451155,
+      "keyFiles": [
+        "Dockerfile",
+        "index.html",
+        "nginx.conf",
+        "package-lock.json",
+        "package.json"
+      ]
+    },
+    "notebooks": {
+      "path": "notebooks",
+      "purpose": null,
+      "fileCount": 1,
+      "lastAccessed": 1776535451156,
+      "keyFiles": [
+        "starter_notebook.ipynb"
+      ]
+    },
+    "scripts": {
+      "path": "scripts",
+      "purpose": "Build/utility scripts",
+      "fileCount": 1,
+      "lastAccessed": 1776535451156,
+      "keyFiles": [
+        "generate_dataset.py"
+      ]
+    },
+    "backend\\app": {
+      "path": "backend\\app",
+      "purpose": "Application code",
+      "fileCount": 3,
+      "lastAccessed": 1776535451157,
+      "keyFiles": [
+        "config.py",
+        "main.py",
+        "__init__.py"
+      ]
+    },
+    "backend\\tests": {
+      "path": "backend\\tests",
+      "purpose": "Test files",
+      "fileCount": 7,
+      "lastAccessed": 1776535451157,
+      "keyFiles": [
+        "test_agent1_numeric_guard.py",
+        "test_agent2_isolation.py",
+        "test_capacity.py"
+      ]
+    },
+    "frontend\\node_modules": {
+      "path": "frontend\\node_modules",
+      "purpose": "Dependencies",
+      "fileCount": 1,
+      "lastAccessed": 1776535451158,
+      "keyFiles": []
+    },
+    "frontend\\src": {
+      "path": "frontend\\src",
+      "purpose": "Source code",
+      "fileCount": 3,
+      "lastAccessed": 1776535451158,
+      "keyFiles": [
+        "App.tsx",
+        "main.tsx",
+        "types.ts"
+      ]
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "frontend\\src\\components\\ProjectSimulator.tsx",
+      "accessCount": 20,
+      "lastAccessed": 1776546667061,
+      "type": "file"
+    },
+    {
+      "path": "frontend\\src\\App.tsx",
+      "accessCount": 17,
+      "lastAccessed": 1776548168230,
+      "type": "file"
+    },
+    {
+      "path": "backend\\app\\api\\routes.py",
+      "accessCount": 9,
+      "lastAccessed": 1776548055131,
+      "type": "file"
+    },
+    {
+      "path": "frontend\\src\\api\\client.ts",
+      "accessCount": 9,
+      "lastAccessed": 1776548071291,
+      "type": "file"
+    },
+    {
+      "path": "frontend\\src\\components\\SourcingPanel.tsx",
+      "accessCount": 9,
+      "lastAccessed": 1776548121872,
+      "type": "file"
+    },
+    {
+      "path": "frontend\\src\\components\\ProjectArchitect.tsx",
+      "accessCount": 7,
+      "lastAccessed": 1776548114366,
+      "type": "file"
+    },
+    {
+      "path": "backend\\app\\api\\schemas.py",
+      "accessCount": 5,
+      "lastAccessed": 1776548030841,
+      "type": "file"
+    },
+    {
+      "path": "frontend\\src\\types.ts",
+      "accessCount": 5,
+      "lastAccessed": 1776548060189,
+      "type": "file"
+    },
+    {
+      "path": "frontend\\src\\components\\ScenarioSelector.tsx",
+      "accessCount": 3,
+      "lastAccessed": 1776544594859,
+      "type": "file"
+    },
+    {
+      "path": "frontend\\src\\components\\DisasterPanel.tsx",
+      "accessCount": 3,
+      "lastAccessed": 1776544864756,
+      "type": "file"
+    },
+    {
+      "path": "backend\\app\\config.py",
+      "accessCount": 1,
+      "lastAccessed": 1776535627739,
+      "type": "file"
+    },
+    {
+      "path": "backend\\app\\engine\\gci.py",
+      "accessCount": 1,
+      "lastAccessed": 1776535628039,
+      "type": "file"
+    },
+    {
+      "path": "backend\\app\\engine\\project_architect.py",
+      "accessCount": 1,
+      "lastAccessed": 1776536044542,
+      "type": "file"
+    },
+    {
+      "path": "backend\\app\\engine\\project_simulation.py",
+      "accessCount": 1,
+      "lastAccessed": 1776538767983,
+      "type": "file"
+    },
+    {
+      "path": "frontend\\src\\components\\FactorySelector.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1776544271991,
+      "type": "file"
+    },
+    {
+      "path": "frontend\\src\\components\\Agent2Panel.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1776544276736,
+      "type": "file"
+    },
+    {
+      "path": "frontend\\src\\components\\CapacityChart.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1776544277293,
+      "type": "file"
+    },
+    {
+      "path": "frontend\\src\\components\\BottleneckAlert.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1776544277408,
+      "type": "file"
+    },
+    {
+      "path": "frontend\\src\\components\\GCIPanel.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1776544281136,
+      "type": "file"
+    },
+    {
+      "path": "frontend\\src\\components\\LoadingState.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1776544281382,
+      "type": "file"
+    },
+    {
+      "path": "frontend\\src\\components\\ReallocationBanner.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1776544281805,
+      "type": "file"
+    },
+    {
+      "path": "frontend\\src\\components\\DataQualityBadge.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1776544281912,
+      "type": "file"
+    }
+  ],
+  "userDirectives": []
+}
