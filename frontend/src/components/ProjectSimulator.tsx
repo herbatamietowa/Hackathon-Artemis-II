@@ -196,8 +196,17 @@ export function ProjectSimulator({ plates, gaskets }: { plates: MaterialOption[]
                 />
                 <span style={{ fontSize: 12, color: '#9ca3af', flexShrink: 0 }}>units</span>
                 {sel && (
-                  <span style={{ fontSize: 11, fontWeight: 600, background: '#dbeafe', color: '#1d4ed8', borderRadius: 4, padding: '2px 8px', flexShrink: 0 }}>
-                    ✓ {sel.path}
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, background: '#dbeafe', color: '#1d4ed8', borderRadius: 4, padding: '2px 8px' }}>
+                      ✓ {sel.path}
+                    </span>
+                    <button
+                      onClick={() => setSelections(prev => { const n = { ...prev }; delete n[item.id]; return n; })}
+                      title="Change path"
+                      style={{ fontSize: 11, color: '#6b7280', background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px' }}
+                    >
+                      × Change
+                    </button>
                   </span>
                 )}
                 {items.length > 1 && (
