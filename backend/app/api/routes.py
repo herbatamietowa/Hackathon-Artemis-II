@@ -1,8 +1,10 @@
 """FastAPI route handlers."""
 from __future__ import annotations
 import logging
+import re
 from datetime import date
 
+import pandas as pd
 from fastapi import APIRouter, HTTPException
 
 from .schemas import (
@@ -15,7 +17,6 @@ from .schemas import (
     WCLoadModel,
 )
 from ..config import DATA_PATH, SCENARIOS
-from ..data.loader import load_workbook
 from ..engine.capacity import compute_capacity_plan
 
 logger = logging.getLogger(__name__)
@@ -36,11 +37,10 @@ def list_scenarios() -> ScenarioListResponse:
 @router.get("/factories", response_model=FactoryListResponse)
 def list_factories() -> FactoryListResponse:
     try:
-        wb = load_workbook(DATA_PATH)
-        sheets = {k.strip(): v for k, v in wb.items()}
-        wc_sheet = next((v for k, v in sheets.items() if "2_1" in k), None)
-        if wc_sheet is not None and "Plant" in wc_sheet.columns:
-            factories = sorted(wc_sheet["Plant"].dropna().astype(str).unique().tolist())
+        df = pd.read_excel(DATA_PATH, sheet_name="2_1 Work Center Capacity Weekly", usecols=["Work center code"])
+        codes = df["Work center code"].dropna().astype(str)
+        factories = sorted({m.group(1) for wc in codes for m in [re.search(r"(NW\d+)", wc)] if m})
+        if factories:
             return FactoryListResponse(factories=factories)
     except Exception as exc:
         logger.warning("Could not derive factory list from data: %s", exc)
