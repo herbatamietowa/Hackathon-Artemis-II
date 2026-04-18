@@ -69,3 +69,48 @@ export interface SourcingRequest {
   scenario: string;
   period?: string;
 }
+
+export interface GCIRoute {
+  plant: string;
+  plant_name: string;
+  region: string;
+  mode: string;
+  gci: number;
+  cost_score: number;
+  carbon_score: number;
+  raw_cost_eur: number;
+  raw_carbon: number;
+  grid_intensity: number;
+  scrap_factor: number;
+  dominant_size: string;
+  arrival_date: string;
+  meets_rdd: boolean;
+  days_margin: number;
+  transport_lt_days: number;
+  carbon_penalty: boolean;
+}
+
+export interface GCIResponse {
+  material_code: string;
+  material_name: string;
+  rdd: string | null;
+  slider_alpha: number;
+  forced_mode: string | null;
+  routes: GCIRoute[];
+  recommended_plant: string | null;
+  green_baseline: number;
+  green_potential_saving_pct: number;
+  ai_insight: string;
+}
+
+export interface GCIRequest {
+  material_code: string;
+  rdd?: string;
+  alpha: number;
+  forced_mode?: string;
+}
+
+export interface MaterialOption {
+  code: string;
+  name: string;
+}

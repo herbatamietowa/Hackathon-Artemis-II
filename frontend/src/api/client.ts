@@ -1,4 +1,4 @@
-import type { AnalyzeRequest, AnalyzeResponse, SourcingRequest, SourcingResponse } from '../types';
+import type { AnalyzeRequest, AnalyzeResponse, GCIRequest, GCIResponse, MaterialOption, SourcingRequest, SourcingResponse } from '../types';
 
 const BASE = '/api';
 
@@ -25,6 +25,8 @@ export const api = {
   health: () => get<{ status: string }>('/health'),
   scenarios: () => get<{ scenarios: string[] }>('/scenarios'),
   factories: () => get<{ factories: string[] }>('/factories'),
+  materials: () => get<{ materials: MaterialOption[] }>('/materials'),
   analyze: (req: AnalyzeRequest) => post<AnalyzeResponse>('/analyze', req),
   sourcing: (req: SourcingRequest) => post<SourcingResponse>('/sourcing', req),
+  gci: (req: GCIRequest) => post<GCIResponse>('/gci', req),
 };

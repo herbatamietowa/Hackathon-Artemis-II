@@ -11,6 +11,10 @@ from .schemas import (
     AnalyzeRequest,
     AnalyzeResponse,
     FactoryListResponse,
+    GCIRequest,
+    GCIResponse,
+    GCIRouteModel,
+    MaterialListResponse,
     ScenarioListResponse,
     SourcingRequest,
     SourcingResponse,
@@ -94,4 +98,80 @@ def sourcing(req: SourcingRequest) -> SourcingResponse:
         return compute_sourcing_plan(req.factory, req.scenario, req.period, DATA_PATH)
     except Exception as exc:
         logger.exception("sourcing endpoint error: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@router.get("/materials", response_model=MaterialListResponse)
+def list_materials() -> MaterialListResponse:
+    """Return all active materials that have multi-plant tooling (GCI candidates)."""
+    try:
+        df26 = pd.read_excel(DATA_PATH, sheet_name="2_6 Tool_material nr master")
+        df23 = pd.read_excel(DATA_PATH, sheet_name="2_3 SAP MasterData")
+        active = df26[df26["Material Status"] == "Active"]
+        multi = active.groupby("Sap code")["Plant"].nunique()
+        multi_codes = multi[multi > 1].index.tolist()
+        name_map = df23.set_index("Sap code")["Description"].to_dict()
+        materials = [
+            {"code": code, "name": name_map.get(code, code)}
+            for code in sorted(multi_codes)
+        ]
+        return MaterialListResponse(materials=materials)
+    except Exception as exc:
+        logger.warning("Could not load materials: %s", exc)
+        return MaterialListResponse(materials=[])
+
+
+@router.post("/gci", response_model=GCIResponse)
+def gci(req: GCIRequest) -> GCIResponse:
+    try:
+        from ..engine.gci import compute_gci
+        from ..agents.agent2_sustainability import run_agent2_gci
+
+        result = compute_gci(
+            material_code=req.material_code,
+            rdd_str=req.rdd,
+            alpha=req.alpha,
+            data_path=DATA_PATH,
+            forced_mode=req.forced_mode,
+        )
+
+        ai_insight = run_agent2_gci(result.ai_context)
+
+        routes = [
+            GCIRouteModel(
+                plant=r.plant,
+                plant_name=r.plant_name,
+                region=r.region,
+                mode=r.mode,
+                gci=round(r.gci, 4),
+                cost_score=round(r.cost_score, 4),
+                carbon_score=round(r.carbon_score, 4),
+                raw_cost_eur=round(r.raw_cost_eur, 2),
+                raw_carbon=round(r.raw_carbon, 4),
+                grid_intensity=r.grid_intensity,
+                scrap_factor=round(r.scrap_factor, 4),
+                dominant_size=r.dominant_size,
+                arrival_date=r.arrival_date.isoformat(),
+                meets_rdd=r.meets_rdd,
+                days_margin=r.days_margin,
+                transport_lt_days=r.transport_lt_days,
+                carbon_penalty=r.carbon_penalty,
+            )
+            for r in result.routes
+        ]
+
+        return GCIResponse(
+            material_code=result.material_code,
+            material_name=result.material_name,
+            rdd=req.rdd,
+            slider_alpha=req.alpha,
+            forced_mode=req.forced_mode,
+            routes=routes,
+            recommended_plant=result.recommended.plant if result.recommended else None,
+            green_baseline=round(result.green_baseline, 4),
+            green_potential_saving_pct=round(result.green_potential_saving_pct, 1),
+            ai_insight=ai_insight,
+        )
+    except Exception as exc:
+        logger.exception("GCI endpoint error: %s", exc)
         raise HTTPException(status_code=500, detail=str(exc))

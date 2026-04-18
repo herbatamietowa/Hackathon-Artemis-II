@@ -138,3 +138,51 @@ class SourcingResponse(BaseModel):
     order_soon_count: int
     urgent_count: int
     overdue_count: int
+
+
+# ---------------------------------------------------------------------------
+# GCI schemas
+# ---------------------------------------------------------------------------
+
+class GCIRequest(BaseModel):
+    material_code: str
+    rdd: Optional[str] = None           # ISO date, e.g. "2026-09-01"
+    alpha: float = 0.5                  # 0 = pure sustainability, 1 = pure cost
+    forced_mode: Optional[str] = None   # "Economy" | "Standard" | "Express" | None
+
+
+class GCIRouteModel(BaseModel):
+    plant: str
+    plant_name: str
+    region: str
+    mode: str
+    gci: float
+    cost_score: float
+    carbon_score: float
+    raw_cost_eur: float
+    raw_carbon: float
+    grid_intensity: float
+    scrap_factor: float
+    dominant_size: str
+    arrival_date: str       # ISO date
+    meets_rdd: bool
+    days_margin: int
+    transport_lt_days: int
+    carbon_penalty: bool
+
+
+class GCIResponse(BaseModel):
+    material_code: str
+    material_name: str
+    rdd: Optional[str]
+    slider_alpha: float
+    forced_mode: Optional[str]
+    routes: list[GCIRouteModel]
+    recommended_plant: Optional[str]
+    green_baseline: float
+    green_potential_saving_pct: float
+    ai_insight: str
+
+
+class MaterialListResponse(BaseModel):
+    materials: list[dict]  # [{code, name}]

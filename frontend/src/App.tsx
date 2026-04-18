@@ -5,12 +5,13 @@ import { BottleneckAlert } from './components/BottleneckAlert';
 import { CapacityChart } from './components/CapacityChart';
 import { DataQualityBadge } from './components/DataQualityBadge';
 import { FactorySelector } from './components/FactorySelector';
+import { GCIPanel } from './components/GCIPanel';
 import { LoadingState } from './components/LoadingState';
 import { ScenarioSelector } from './components/ScenarioSelector';
 import { SourcingPanel } from './components/SourcingPanel';
 import type { AnalyzeResponse, SourcingResponse } from './types';
 
-type Tab = 'capacity' | 'sourcing';
+type Tab = 'capacity' | 'sourcing' | 'gci';
 
 export default function App() {
   const [factories, setFactories] = useState<string[]>(['NW01']);
@@ -51,7 +52,7 @@ export default function App() {
     }
   };
 
-  const loading = tab === 'capacity' ? loadingCapacity : loadingSourcing;
+  const loading = tab === 'capacity' ? loadingCapacity : tab === 'sourcing' ? loadingSourcing : false;
 
   return (
     <div style={{ fontFamily: 'system-ui, sans-serif', maxWidth: 960, margin: '0 auto', padding: '24px 16px' }}>
@@ -76,14 +77,16 @@ export default function App() {
         </div>
       )}
 
-      {/* Controls */}
-      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', marginBottom: 20, flexWrap: 'wrap' }}>
-        <FactorySelector factories={factories} value={factory} onChange={setFactory} />
-        <ScenarioSelector scenarios={scenarios} value={scenario} onChange={setScenario} />
-        <button onClick={run} disabled={loading} style={btnStyle}>
-          {loading ? 'Running…' : 'Run Analysis'}
-        </button>
-      </div>
+      {/* Controls — hidden on GCI tab (it has its own controls) */}
+      {tab !== 'gci' && (
+        <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', marginBottom: 20, flexWrap: 'wrap' }}>
+          <FactorySelector factories={factories} value={factory} onChange={setFactory} />
+          <ScenarioSelector scenarios={scenarios} value={scenario} onChange={setScenario} />
+          <button onClick={run} disabled={loading} style={btnStyle}>
+            {loading ? 'Running…' : 'Run Analysis'}
+          </button>
+        </div>
+      )}
 
       {/* Tab bar */}
       <div style={{ display: 'flex', gap: 0, borderBottom: '2px solid #e5e7eb', marginBottom: 20 }}>
@@ -92,6 +95,9 @@ export default function App() {
         </TabButton>
         <TabButton active={tab === 'sourcing'} onClick={() => setTab('sourcing')}>
           Sourcing
+        </TabButton>
+        <TabButton active={tab === 'gci'} onClick={() => setTab('gci')}>
+          GCI Optimiser
         </TabButton>
       </div>
 
@@ -134,6 +140,9 @@ export default function App() {
           <SourcingPanel data={sourcingResult} />
         </div>
       )}
+
+      {/* GCI tab */}
+      {tab === 'gci' && <GCIPanel />}
 
       {/* Empty state prompts */}
       {tab === 'capacity' && !capacityResult && !loading && !error && (
