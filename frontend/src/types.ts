@@ -44,6 +44,12 @@ export interface ReallocationSuggestion {
   target_grid_intensity: number;
   carbon_delta_pct: number;
 }
+export interface AgentTurn {
+  agent_name: string;
+  message: string;
+  verdict?: string;
+}
+
 
 export interface AnalyzeResponse {
   agent1_result: Agent1Result;
@@ -53,7 +59,7 @@ export interface AnalyzeResponse {
   status: 'CONSENSUS' | 'CONTESTED' | 'USER_OVERRIDE';
   reallocation?: ReallocationSuggestion;
 }
-}
+
 
 export interface AnalyzeRequest {
   factory: string;
