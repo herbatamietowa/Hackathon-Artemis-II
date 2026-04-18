@@ -26,3 +26,7 @@ frontend/dist/
 # OS
 .DS_Store
 Thumbs.db
+
+
+csstype/
+node_modules/
