@@ -17,6 +17,8 @@ import openai
 from ..api.schemas import Agent1Result, Agent2Verdict
 from ..config import AGENT2_FALLBACK_MODEL, AGENT2_MODEL, BOTTLENECK_THRESHOLD, GEMINI_API_KEY, GEMINI_BASE_URL
 
+_GCI_SYSTEM = """You are a supply chain sustainability advisor. Given GCI optimization data, produce a single concise insight (2-4 sentences) explaining the recommended sourcing route and what switching to the greenest alternative would save. Be specific: name the plants, regions, grid intensity values, and the carbon saving percentage. Output only the insight text — no JSON, no headers."""
+
 logger = logging.getLogger(__name__)
 
 _SYSTEM_PROMPT = (Path(__file__).parent / "prompts" / "agent2_system.md").read_text()
@@ -100,3 +102,51 @@ def run_agent2(agent1: Agent1Result) -> Agent2Verdict:
             break
 
     return _deterministic_verdict(agent1)
+
+
+_GCI_SYSTEM = """You are a supply chain sustainability advisor. Given GCI optimization data, produce a single concise insight (2-4 sentences) explaining the recommended sourcing route and what switching to the greenest alternative would save. Be specific: name the plants, regions, grid intensity values, and the carbon saving percentage. Output only the insight text — no JSON, no headers."""
+
+
+def _deterministic_gci_insight(ctx: dict) -> str:
+    rec = ctx.get("recommended_plant_name", ctx.get("recommended_plant", "?"))
+    green = ctx.get("greenest_plant_name", ctx.get("greenest_plant", "?"))
+    saving = ctx.get("green_potential_saving_pct", 0)
+    mode = ctx.get("recommended_mode", "Standard")
+    intensity = ctx.get("greenest_grid_intensity", 0)
+    if rec == green:
+        return (
+            f"The recommended plant ({rec}) is already the greenest option in the network "
+            f"with a grid intensity of {intensity:.2f} gCO₂/kWh. "
+            f"No further routing optimisation is available for this material."
+        )
+    return (
+        f"The current recommendation routes production to {rec} via {mode}. "
+        f"Shifting to {green} (grid intensity {intensity:.2f} gCO₂/kWh) would reduce "
+        f"the carbon score by {saving:.1f}% — the lowest footprint achievable across the network. "
+        f"Consider this trade-off when sustainability weighting is a priority."
+    )
+
+
+def run_agent2_gci(ai_context: dict) -> str:
+    """Return a natural-language GCI insight from Gemini, with deterministic fallback."""
+    if not GEMINI_API_KEY:
+        return _deterministic_gci_insight(ai_context)
+
+    client = openai.OpenAI(api_key=GEMINI_API_KEY, base_url=GEMINI_BASE_URL)
+    user_content = json.dumps(ai_context, indent=2)
+
+    for attempt, model in enumerate([AGENT2_MODEL, AGENT2_FALLBACK_MODEL]):
+        try:
+            response = client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": _GCI_SYSTEM},
+                    {"role": "user", "content": user_content},
+                ],
+                max_tokens=256,
+            )
+            return _strip_think(response.choices[0].message.content or "").strip()
+        except (openai.APIError, Exception) as exc:
+            logger.warning("GCI agent error (attempt %d, model=%s): %s", attempt + 1, model, exc)
+
+    return _deterministic_gci_insight(ai_context)
