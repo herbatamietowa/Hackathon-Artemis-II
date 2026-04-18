@@ -25,7 +25,6 @@ const PRINT_STYLES = `
 }
 `;
 
-type Tab = 'capacity' | 'sourcing';
 
 export default function App() {
   const [factories, setFactories] = useState<string[]>(['NW01']);
