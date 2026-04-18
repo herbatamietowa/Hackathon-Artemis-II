@@ -10,12 +10,24 @@ from fastapi import APIRouter, HTTPException
 from .schemas import (
     AnalyzeRequest,
     AnalyzeResponse,
+    ApproveProjectRequest,
+    ConfirmProjectRequest,
+    DisasterRequest,
+    DisasterResult,
     FactoryListResponse,
     GCIRequest,
     GCIResponse,
     GCIRouteModel,
     MaterialListResponse,
+    ProjectArchitectRequest,
+    ProjectArchitectResponse,
+    ProjectSimulationRequest,
+    ProjectSimulationResponse,
+    RawMaterialStatusModel,
+    ReallocationSuggestion,
     ScenarioListResponse,
+    ScenarioPathModel,
+    SimulationPathModel,
     SourcingRequest,
     SourcingResponse,
     WCLoadModel,
@@ -71,6 +83,13 @@ def analyze(req: AnalyzeRequest) -> AnalyzeResponse:
         agent1_result = run_agent1(engine_result)
         agent2_verdict = run_agent2(agent1_result)
 
+        # Reallocation suggestion — only when bottleneck and factory is not already NW03
+        reallocation: ReallocationSuggestion | None = None
+        if engine_result.bottleneck_detected and req.factory != "NW03":
+            from ..engine.reallocation import check_nw03_headroom
+            overflow = max(0.0, engine_result.demanded_hours - engine_result.available_hours)
+            reallocation = check_nw03_headroom(period, overflow, DATA_PATH, source_factory=req.factory)
+
         return AnalyzeResponse(
             agent1_result=agent1_result,
             agent2_verdict=agent2_verdict,
@@ -83,6 +102,7 @@ def analyze(req: AnalyzeRequest) -> AnalyzeResponse:
                 )
                 for wc in engine_result.per_work_center
             ],
+            reallocation=reallocation,
         )
     except Exception as exc:
         logger.exception("analyze endpoint error: %s", exc)
@@ -175,3 +195,144 @@ def gci(req: GCIRequest) -> GCIResponse:
     except Exception as exc:
         logger.exception("GCI endpoint error: %s", exc)
         raise HTTPException(status_code=500, detail=str(exc))
+
+
+@router.post("/disaster", response_model=DisasterResult)
+def disaster(req: DisasterRequest) -> DisasterResult:
+    if req.scenario not in SCENARIOS:
+        raise HTTPException(status_code=400, detail=f"Unknown scenario: {req.scenario}")
+    if not (1 <= req.duration_months <= 12):
+        raise HTTPException(status_code=400, detail="duration_months must be between 1 and 12")
+    try:
+        from ..engine.disaster import compute_disaster_impact
+        period = req.period
+        if period is None:
+            today = date.today()
+            month = today.month % 12 + 1
+            year = today.year + (1 if today.month == 12 else 0)
+            period = f"{month} {year}"
+        return compute_disaster_impact(
+            offline_factory=req.offline_factory,
+            scenario=req.scenario,
+            period=period,
+            duration_months=req.duration_months,
+            data_path=DATA_PATH,
+        )
+    except Exception as exc:
+        logger.exception("disaster endpoint error: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@router.post("/project-architect", response_model=ProjectArchitectResponse)
+def project_architect(req: ProjectArchitectRequest) -> ProjectArchitectResponse:
+    try:
+        from ..engine.project_architect import compute_project_architect
+        result = compute_project_architect(
+            material_code=req.material_code,
+            quantity=req.quantity,
+            deadline=req.deadline,
+            data_path=DATA_PATH,
+        )
+        return ProjectArchitectResponse(
+            material_code=result.material_code,
+            material_name=result.material_name,
+            quantity=result.quantity,
+            deadline=result.deadline,
+            paths=[ScenarioPathModel(**vars(p)) for p in result.paths],
+        )
+    except Exception as exc:
+        logger.exception("project-architect error: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@router.post("/confirm-project")
+def confirm_project(req: ConfirmProjectRequest) -> dict:
+    import csv
+    from datetime import datetime
+    log_path = DATA_PATH.parent / "confirmed_projects.csv"
+    row = {
+        "timestamp": datetime.utcnow().isoformat(),
+        "material_code": req.material_code,
+        "material_name": req.material_name,
+        "quantity": req.quantity,
+        "deadline": req.deadline or "",
+        "chosen_path": req.chosen_path,
+        "chosen_plant": req.chosen_plant,
+        "cost_eur": req.cost_eur,
+        "delivery_date": req.delivery_date,
+    }
+    try:
+        write_header = not log_path.exists()
+        with open(log_path, "a", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=list(row.keys()))
+            if write_header:
+                writer.writeheader()
+            writer.writerow(row)
+    except Exception as exc:
+        logger.warning("Could not write project log: %s", exc)
+    return {"status": "saved", "project": row}
+
+
+@router.get("/plates", response_model=MaterialListResponse)
+def list_plates() -> MaterialListResponse:
+    """Return all header materials from 3_2 (the plate IDs) with names."""
+    try:
+        from ..engine.project_simulation import get_plate_list
+        return MaterialListResponse(materials=get_plate_list(DATA_PATH))
+    except Exception as exc:
+        logger.warning("Could not load plates: %s", exc)
+        return MaterialListResponse(materials=[])
+
+
+@router.post("/simulate-project", response_model=ProjectSimulationResponse)
+def simulate_project(req: ProjectSimulationRequest) -> ProjectSimulationResponse:
+    try:
+        from ..engine.project_simulation import compute_project_simulation
+        result = compute_project_simulation(
+            plate_code=req.plate_code,
+            quantity=req.quantity,
+            data_path=DATA_PATH,
+        )
+        return ProjectSimulationResponse(
+            plate_code=result.plate_code,
+            plate_name=result.plate_name,
+            gasket_code=result.gasket_code,
+            gasket_name=result.gasket_name,
+            quantity=result.quantity,
+            feasible_plants=result.feasible_plants,
+            raw_materials=[RawMaterialStatusModel(**vars(r)) for r in result.raw_materials],
+            paths=[SimulationPathModel(**vars(p)) for p in result.paths],
+            warning=result.warning,
+        )
+    except Exception as exc:
+        logger.exception("simulate-project error: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@router.post("/approve-project")
+def approve_project(req: ApproveProjectRequest) -> dict:
+    import json
+    from datetime import datetime
+    log_path = DATA_PATH.parent / "approved_projects.jsonl"
+    record = {
+        "project_id": f"PROJ-{int(datetime.utcnow().timestamp())}",
+        "project_name": f"{req.plate_code} × {req.quantity}",
+        "plate_code": req.plate_code,
+        "plate_name": req.plate_name,
+        "gasket_code": req.gasket_code,
+        "quantity": req.quantity,
+        "status": "Approved",
+        "plant": req.plant,
+        "mode": req.mode,
+        "note": f"{req.mode} logistics — {req.path_name} scenario",
+        "total_cost_eur": req.total_cost_eur,
+        "delivery_days": req.delivery_days,
+        "carbon_score": req.carbon_score,
+        "approved_at": datetime.utcnow().isoformat(),
+    }
+    try:
+        with open(log_path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(record) + "\n")
+    except Exception as exc:
+        logger.warning("Could not write approved project: %s", exc)
+    return {"status": "approved", "record": record}
