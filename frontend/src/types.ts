@@ -23,9 +23,10 @@ export interface Agent1Result {
 }
 
 export interface Agent2Verdict {
-  verdict: 'APPROVED' | 'CORRECTED';
+  verdict: 'APPROVED' | 'REOPEN DEBATE';
   strategy: string;
   sustainability_recommendation: string;
+  challenge_summary?: string
   fallback: boolean;
 }
 
@@ -33,12 +34,21 @@ export interface AnalyzeResponse {
   agent1_result: Agent1Result;
   agent2_verdict: Agent2Verdict;
   per_work_center: WCLoad[];
+  debate_history: AgentTurn[];
+  status: 'CONSENSUS' | 'CONTESTED' | 'USER_OVERRIDE'
+}
+
+export interface AgentTurn {
+  agent_name: string;
+  message: string;
+   verdict?: string;
 }
 
 export interface AnalyzeRequest {
   factory: string;
   scenario: string;
   period?: string;
+  user_argument?: string;
 }
 
 export interface SourcingMaterial {

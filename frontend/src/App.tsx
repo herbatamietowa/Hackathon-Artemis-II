@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from './api/client';
+import { DebatePanel } from './components/DebatePanel';
 import { Agent2Panel } from './components/Agent2Panel';
 import { BottleneckAlert } from './components/BottleneckAlert';
 import { CapacityChart } from './components/CapacityChart';
@@ -10,6 +11,8 @@ import { LoadingState } from './components/LoadingState';
 import { ScenarioSelector } from './components/ScenarioSelector';
 import { SourcingPanel } from './components/SourcingPanel';
 import type { AnalyzeResponse, SourcingResponse } from './types';
+
+
 
 type Tab = 'capacity' | 'sourcing' | 'gci';
 const PRINT_STYLES = `
@@ -39,6 +42,7 @@ export default function App() {
   const [sourcingResult, setSourcingResult] = useState<SourcingResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [offline, setOffline] = useState(false);
+  const [userArgument, setUserArgument] = useState('');
 
   useEffect(() => {
     api.factories().then(r => setFactories(r.factories)).catch(() => {});
@@ -50,7 +54,7 @@ export default function App() {
     if (tab === 'capacity') {
       setLoadingCapacity(true);
       try {
-        const res = await api.analyze({ factory, scenario });
+        const res = await api.analyze({ factory, scenario, user_argument: userArgument });
         setCapacityResult(res);
         setOffline(res.agent1_result.fallback && res.agent2_verdict.fallback);
       } catch (e) { setError(String(e)); }
@@ -128,12 +132,29 @@ export default function App() {
 
       {/* Controls — hidden on GCI tab (it has its own controls) */}
       {tab !== 'gci' && (
-        <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', marginBottom: 20, flexWrap: 'wrap' }}>
-          <FactorySelector factories={factories} value={factory} onChange={setFactory} />
-          <ScenarioSelector scenarios={scenarios} value={scenario} onChange={setScenario} />
-          <button onClick={run} disabled={loading} style={btnStyle}>
-            {loading ? 'Running…' : 'Run Analysis'}
-          </button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            <FactorySelector factories={factories} value={factory} onChange={setFactory} />
+            <ScenarioSelector scenarios={scenarios} value={scenario} onChange={setScenario} />
+            <button onClick={run} disabled={loading} style={btnStyle}>
+              {loading ? 'Running…' : 'Run Analysis'}
+            </button>
+          </div>
+          <textarea
+            value={userArgument}
+            onChange={(e) => setUserArgument(e.target.value)}
+            placeholder="Optional: add a user argument or specific consideration for the debate"
+            style={{
+              width: '100%',
+              minHeight: 80,
+              padding: '10px 12px',
+              borderRadius: 6,
+              border: '1px solid #d1d5db',
+              fontFamily: 'system-ui, sans-serif',
+              fontSize: 13,
+              resize: 'vertical',
+            }}
+          />
         </div>
       )}
 
@@ -182,6 +203,7 @@ export default function App() {
           <CapacityChart data={capacityResult.per_work_center} />
           <BottleneckAlert result={capacityResult.agent1_result} />
           <Agent2Panel verdict={capacityResult.agent2_verdict} />
+          <DebatePanel debateHistory={capacityResult.debate_history} status={capacityResult.status} />
         </div>
       )}
 

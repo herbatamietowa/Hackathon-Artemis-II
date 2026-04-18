@@ -66,10 +66,38 @@ def analyze(req: AnalyzeRequest) -> AnalyzeResponse:
     try:
         from ..agents.agent1_capacity import run_agent1
         from ..agents.agent2_sustainability import run_agent2
+        from .schemas import AgentTurn
 
         engine_result = compute_capacity_plan(req.factory, req.scenario, period, DATA_PATH)
-        agent1_result = run_agent1(engine_result)
-        agent2_verdict = run_agent2(agent1_result)
+
+        debate_history: list[AgentTurn] = []
+        if req.user_argument:
+            debate_history.append(AgentTurn(agent_name="User", message=req.user_argument))
+
+        # Round 1: Cost Specialist proposes
+        agent1_result = run_agent1(
+            engine_result,
+            debate_context=[turn.model_dump() for turn in debate_history] if debate_history else None,
+        )
+        debate_history.append(AgentTurn(agent_name="Cost Specialist", message=agent1_result.reasoning))
+
+        # Round 1: Sustainability Director responds
+        agent2_verdict = run_agent2(
+            agent1_result,
+            debate_context=[turn.model_dump() for turn in debate_history] if debate_history else None,
+        )
+        debate_history.append(AgentTurn(agent_name="Sustainability Director", message=agent2_verdict.strategy, verdict=agent2_verdict.verdict))
+
+        # If debate reopened, Round 2: Cost Specialist counters
+        if agent2_verdict.verdict == "REOPEN DEBATE":
+            agent1_result = run_agent1(engine_result, debate_context=[turn.model_dump() for turn in debate_history])
+            debate_history.append(AgentTurn(agent_name="Cost Specialist", message=agent1_result.reasoning))
+
+            # Round 2: Sustainability Director finalizes
+            agent2_verdict = run_agent2(agent1_result, debate_context=[turn.model_dump() for turn in debate_history])
+            debate_history.append(AgentTurn(agent_name="Sustainability Director", message=agent2_verdict.strategy, verdict=agent2_verdict.verdict))
+
+        status = "USER_OVERRIDE" if req.user_argument else ("CONSENSUS" if agent2_verdict.verdict == "APPROVED" else "CONTESTED")
 
         return AnalyzeResponse(
             agent1_result=agent1_result,
@@ -83,6 +111,8 @@ def analyze(req: AnalyzeRequest) -> AnalyzeResponse:
                 )
                 for wc in engine_result.per_work_center
             ],
+            debate_history=debate_history,
+            status=status,
         )
     except Exception as exc:
         logger.exception("analyze endpoint error: %s", exc)

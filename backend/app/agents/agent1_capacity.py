@@ -73,7 +73,7 @@ def _numeric_guard(agent_dict: dict, engine_result: CapacityPlanResult) -> bool:
     return True
 
 
-def run_agent1(engine_result: CapacityPlanResult) -> Agent1Result:
+def run_agent1(engine_result: CapacityPlanResult, debate_context: list[dict] | None = None) -> Agent1Result:
     """Run Agent 1 via Groq. Returns Agent1Result (fallback=True if unavailable or guard fires)."""
     if not GROQ_API_KEY:
         return _fallback_result(engine_result, "GROQ_API_KEY not set.")
@@ -90,6 +90,7 @@ def run_agent1(engine_result: CapacityPlanResult) -> Agent1Result:
             "content": (
                 f"Analyze capacity for factory={factory}, scenario={scenario}, period={period}. "
                 "Call the compute_capacity tool first, then emit your JSON report."
+                + (f"\n\nDebate Context:\n{json.dumps(debate_context)}" if debate_context else "")
             ),
         },
     ]
