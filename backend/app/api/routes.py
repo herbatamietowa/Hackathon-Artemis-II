@@ -6,6 +6,7 @@ from datetime import date
 
 import pandas as pd
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 
 from .schemas import (
     AnalyzeRequest,
@@ -26,6 +27,20 @@ from ..engine.capacity import compute_capacity_plan
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api")
+
+
+class TimelinePoint(BaseModel):
+    period: str
+    capacity_utilization: float
+    available_hours: float
+    demanded_hours: float
+    bottleneck_detected: bool
+
+
+class TimelineResponse(BaseModel):
+    factory: str
+    scenario: str
+    points: list[TimelinePoint]
 
 
 @router.get("/health")
@@ -49,6 +64,43 @@ def list_factories() -> FactoryListResponse:
     except Exception as exc:
         logger.warning("Could not derive factory list from data: %s", exc)
     return FactoryListResponse(factories=["NW01", "NW03"])
+
+
+@router.get("/timeline", response_model=TimelineResponse)
+def timeline(
+    factory: str = "NW01",
+    scenario: str = "probability_weighted",
+    months: int = 36,
+) -> TimelineResponse:
+    """Return capacity utilization for up to 36 months."""
+    if scenario not in SCENARIOS:
+        raise HTTPException(status_code=400, detail=f"Unknown scenario: {scenario}")
+    months = min(max(months, 1), 36)
+
+    today = date.today()
+    periods: list[str] = []
+    m, y = today.month, today.year
+    for _ in range(months):
+        m += 1
+        if m > 12:
+            m, y = 1, y + 1
+        periods.append(f"{m} {y}")
+
+    points: list[TimelinePoint] = []
+    for period in periods:
+        try:
+            r = compute_capacity_plan(factory, scenario, period, DATA_PATH)
+            points.append(TimelinePoint(
+                period=period,
+                capacity_utilization=r.capacity_utilization,
+                available_hours=r.available_hours,
+                demanded_hours=r.demanded_hours,
+                bottleneck_detected=r.bottleneck_detected,
+            ))
+        except Exception as exc:
+            logger.warning("Timeline skipping period %s: %s", period, exc)
+
+    return TimelineResponse(factory=factory, scenario=scenario, points=points)
 
 
 @router.post("/analyze", response_model=AnalyzeResponse)

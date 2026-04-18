@@ -9,7 +9,8 @@ import { GCIPanel } from './components/GCIPanel';
 import { LoadingState } from './components/LoadingState';
 import { ScenarioSelector } from './components/ScenarioSelector';
 import { SourcingPanel } from './components/SourcingPanel';
-import type { AnalyzeResponse, SourcingResponse } from './types';
+import { TimelineChart } from './components/TimelineChart';
+import type { AnalyzeResponse, SourcingResponse, TimelinePoint } from './types';
 
 type Tab = 'capacity' | 'sourcing' | 'gci';
 const PRINT_STYLES = `
@@ -39,11 +40,23 @@ export default function App() {
   const [sourcingResult, setSourcingResult] = useState<SourcingResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [offline, setOffline] = useState(false);
+  const [timelinePoints, setTimelinePoints] = useState<TimelinePoint[]>([]);
+  const [loadingTimeline, setLoadingTimeline] = useState(false);
+  const [timelineError, setTimelineError] = useState(false);
 
   useEffect(() => {
     api.factories().then(r => setFactories(r.factories)).catch(() => {});
     api.scenarios().then(r => setScenarios(r.scenarios)).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    setLoadingTimeline(true);
+    setTimelineError(false);
+    api.timeline(factory, scenario, 36)
+      .then(r => setTimelinePoints(r.points))
+      .catch(() => { setTimelinePoints([]); setTimelineError(true); })
+      .finally(() => setLoadingTimeline(false));
+  }, [factory, scenario]);
 
   const run = async () => {
     setError(null);
@@ -155,6 +168,13 @@ export default function App() {
       {error && (
         <div className="no-print" style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, padding: '12px 16px', color: '#991b1b', fontSize: 13 }}>
           {error}
+        </div>
+      )}
+
+      {/* Timeline — loads automatically on factory/scenario change, always shown on capacity tab */}
+      {tab === 'capacity' && (
+        <div className="print-section" style={{ marginBottom: 16 }}>
+          <TimelineChart points={timelinePoints} loading={loadingTimeline} error={timelineError} />
         </div>
       )}
 

@@ -1,4 +1,4 @@
-import type { AnalyzeRequest, AnalyzeResponse, GCIRequest, GCIResponse, MaterialOption, SourcingRequest, SourcingResponse } from '../types';
+import type { AnalyzeRequest, AnalyzeResponse, GCIRequest, GCIResponse, MaterialOption, SourcingRequest, SourcingResponse, TimelineResponse } from '../types';
 
 const BASE = '/api';
 
@@ -29,4 +29,6 @@ export const api = {
   analyze: (req: AnalyzeRequest) => post<AnalyzeResponse>('/analyze', req),
   sourcing: (req: SourcingRequest) => post<SourcingResponse>('/sourcing', req),
   gci: (req: GCIRequest) => post<GCIResponse>('/gci', req),
+  timeline: (factory: string, scenario: string, months = 36) =>
+    get<TimelineResponse>(`/timeline?factory=${encodeURIComponent(factory)}&scenario=${encodeURIComponent(scenario)}&months=${months}`),
 };

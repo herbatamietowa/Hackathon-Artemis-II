@@ -114,3 +114,17 @@ export interface MaterialOption {
   code: string;
   name: string;
 }
+
+export interface TimelinePoint {
+  period: string;
+  capacity_utilization: number;
+  available_hours: number;
+  demanded_hours: number;
+  bottleneck_detected: boolean;
+}
+
+export interface TimelineResponse {
+  factory: string;
+  scenario: string;
+  points: TimelinePoint[];
+}
