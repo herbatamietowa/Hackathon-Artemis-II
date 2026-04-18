@@ -1,0 +1,16 @@
+{
+  "scenario": "probability_weighted",
+  "factory": "NW01",
+  "period": "2026-05",
+  "capacity_utilization": 0.87,
+  "available_hours": 1240.0,
+  "demanded_hours": 1078.8,
+  "bottleneck_detected": true,
+  "bottleneck_work_centers": ["PRESS_3", "PRESS_5"],
+  "oee_applied": 0.82,
+  "excluded_rows": 12,
+  "flag_count": 7,
+  "reconstructed_rows": 3,
+  "reasoning": "For NW01 in May 2026 under probability-weighted demand, total load across all work centers reaches 87% of available capacity. PRESS_3 and PRESS_5 are bottlenecked at 94% and 96% respectively after applying 18% OEE downtime. Remaining work centers operate within safe limits.",
+  "fallback": false
+}
