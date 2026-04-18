@@ -137,21 +137,21 @@
   },
   "hotPaths": [
     {
-      "path": "frontend\\src\\components\\ProjectSimulator.tsx",
-      "accessCount": 20,
-      "lastAccessed": 1776546667061,
+      "path": "frontend\\src\\App.tsx",
+      "accessCount": 25,
+      "lastAccessed": 1776549741740,
       "type": "file"
     },
     {
-      "path": "frontend\\src\\App.tsx",
-      "accessCount": 17,
-      "lastAccessed": 1776548168230,
+      "path": "frontend\\src\\components\\ProjectSimulator.tsx",
+      "accessCount": 24,
+      "lastAccessed": 1776549856685,
       "type": "file"
     },
     {
       "path": "backend\\app\\api\\routes.py",
-      "accessCount": 9,
-      "lastAccessed": 1776548055131,
+      "accessCount": 10,
+      "lastAccessed": 1776549019516,
       "type": "file"
     },
     {
@@ -174,14 +174,20 @@
     },
     {
       "path": "backend\\app\\api\\schemas.py",
-      "accessCount": 5,
-      "lastAccessed": 1776548030841,
+      "accessCount": 7,
+      "lastAccessed": 1776549128634,
       "type": "file"
     },
     {
       "path": "frontend\\src\\types.ts",
-      "accessCount": 5,
-      "lastAccessed": 1776548060189,
+      "accessCount": 6,
+      "lastAccessed": 1776549137612,
+      "type": "file"
+    },
+    {
+      "path": "backend\\app\\engine\\project_simulation.py",
+      "accessCount": 4,
+      "lastAccessed": 1776549123134,
       "type": "file"
     },
     {
@@ -212,12 +218,6 @@
       "path": "backend\\app\\engine\\project_architect.py",
       "accessCount": 1,
       "lastAccessed": 1776536044542,
-      "type": "file"
-    },
-    {
-      "path": "backend\\app\\engine\\project_simulation.py",
-      "accessCount": 1,
-      "lastAccessed": 1776538767983,
       "type": "file"
     },
     {

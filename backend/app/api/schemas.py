@@ -321,6 +321,7 @@ class SimulationPathModel(BaseModel):
     carbon_score: float
     grid_intensity: float
     scrap_factor: float
+    estimated_co2_kg: float = 0.0
 
 
 class ProjectSimulationRequest(BaseModel):

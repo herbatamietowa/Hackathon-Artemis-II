@@ -1,2 +1,3 @@
 {"t":0,"agent":"aa7e9cf","agent_type":"Explore","event":"agent_start","parent_mode":"none"}
 {"t":0,"agent":"aa7e9cf","agent_type":"Explore","event":"agent_stop","success":true,"duration_ms":64377}
+{"t":0,"agent":"a269597","agent_type":"unknown","event":"agent_stop","success":true}

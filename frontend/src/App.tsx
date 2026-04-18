@@ -39,8 +39,8 @@ const PRINT_STYLES = `
 export default function App() {
   const [factories, setFactories] = useState<string[]>(['NW01']);
   const [scenarios, setScenarios] = useState<string[]>(['100_pct', 'probability_weighted', 'high_prob_only']);
-  const [materials, setMaterials] = useState<MaterialOption[]>([]);
   const [plates, setPlates] = useState<MaterialOption[]>([]);
+  const [gaskets, setGaskets] = useState<MaterialOption[]>([]);
   const [rawMaterials, setRawMaterials] = useState<RawMaterialItem[]>([]);
   const [factory, setFactory] = useState('NW01');
   const [scenario, setScenario] = useState('probability_weighted');
@@ -60,7 +60,7 @@ export default function App() {
   useEffect(() => {
     api.factories().then(r => setFactories(r.factories)).catch(() => {});
     api.scenarios().then(r => setScenarios(r.scenarios)).catch(() => {});
-    api.materials().then(r => setMaterials(r.materials)).catch(() => {});
+    api.materials().then(r => setGaskets(r.materials)).catch(() => {});
     api.plates().then(r => setPlates(r.materials)).catch(() => {});
     api.rawMaterials().then(r => setRawMaterials(r.materials)).catch(() => {});
   }, []);
@@ -202,7 +202,7 @@ export default function App() {
       )}
 
       {/* New Project */}
-      {tab === 'project' && <ProjectSimulator plates={plates} gaskets={materials} />}
+      {tab === 'project' && <ProjectSimulator plates={plates} gaskets={gaskets} />}
 
       {/* Order Materials */}
       {tab === 'order' && (

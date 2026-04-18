@@ -64,6 +64,7 @@ class SimulationPath:
     carbon_score: float       # 0-100
     grid_intensity: float
     scrap_factor: float
+    estimated_co2_kg: float   # estimated total CO₂ in kg (production + logistics)
 
 
 @dataclass
@@ -273,6 +274,11 @@ def _build_path(
     log_carbon = (weight / 1000) * distance_km * _MODE_EMISSION_GTKM[mode] / 10_000
     carbon_score = min(100.0, round((prod_carbon + log_carbon) / 3.0 * 100, 1))
 
+    # Estimated CO₂ in kg: production (grid kgCO₂/kWh × proxy energy) + logistics
+    prod_co2_kg = round(s["grid"] * scrap * 1.5 * quantity, 1)
+    log_co2_kg = round((weight * quantity / 1000) * distance_km * _MODE_EMISSION_GTKM[mode] / 1_000, 1)
+    estimated_co2_kg = round(prod_co2_kg + log_co2_kg, 1)
+
     return SimulationPath(
         name=name, icon=icon,
         plant=s["plant"], plant_name=s["plant_name"], mode=mode,
@@ -287,4 +293,5 @@ def _build_path(
         carbon_score=carbon_score,
         grid_intensity=s["grid"],
         scrap_factor=round(scrap, 3),
+        estimated_co2_kg=estimated_co2_kg,
     )

@@ -234,6 +234,7 @@ export interface SimulationPath {
   carbon_score: number;
   grid_intensity: number;
   scrap_factor: number;
+  estimated_co2_kg: number;
 }
 
 export interface ProjectSimulationResult {
