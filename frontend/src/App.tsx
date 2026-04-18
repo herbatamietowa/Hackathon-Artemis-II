@@ -56,6 +56,9 @@ export default function App() {
   const [sourcingResult, setSourcingResult] = useState<SourcingResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [offline, setOffline] = useState(false);
+  const [bottleneckCache, setBottleneckCache] = useState<Record<string, boolean>>({});
+  const [reallocationApplied, setReallocationApplied] = useState(false);
+  const [simulatedCapacityResult, setSimulatedCapacityResult] = useState<AnalyzeResponse | null>(null);
 
   useEffect(() => {
     api.factories().then(r => setFactories(r.factories)).catch(() => {});
@@ -71,16 +74,52 @@ export default function App() {
     let cancelled = false;
     setLoadingCapacity(true);
     setError(null);
+    setReallocationApplied(false);
+    setSimulatedCapacityResult(null);
     api.analyze({ factory, scenario })
       .then(res => {
         if (cancelled) return;
         setCapacityResult(res);
         setOffline(res.agent1_result.fallback && res.agent2_verdict.fallback);
+        setBottleneckCache(prev => ({ ...prev, [factory]: res.agent1_result.bottleneck_detected }));
       })
       .catch(e => { if (!cancelled) setError(String(e)); })
       .finally(() => { if (!cancelled) setLoadingCapacity(false); });
     return () => { cancelled = true; };
   }, [factory, scenario, tab]);
+
+  const handleApplyReallocation = () => {
+    if (!capacityResult) return;
+    const r = capacityResult.reallocation;
+    if (!r) return;
+    const bottleneckSet = new Set(capacityResult.agent1_result.bottleneck_work_centers);
+    const absorptionRatio = r.overflow_hours > 0 ? Math.min(1, r.available_headroom_hours / r.overflow_hours) : 1;
+    const newWC = capacityResult.per_work_center.map(wc => {
+      if (!bottleneckSet.has(wc.wc)) return wc;
+      const wcOverflow = Math.max(0, wc.demanded - wc.available * 0.9);
+      const newDemanded = wc.demanded - wcOverflow * absorptionRatio;
+      return { ...wc, demanded: newDemanded, utilization: newDemanded / wc.available };
+    });
+    const totalAvailable = newWC.reduce((s, w) => s + w.available, 0);
+    const totalDemanded = newWC.reduce((s, w) => s + w.demanded, 0);
+    const newBottleneckWCs = newWC.filter(w => w.utilization >= 0.9).map(w => w.wc);
+    const simulated: AnalyzeResponse = {
+      ...capacityResult,
+      per_work_center: newWC,
+      agent1_result: {
+        ...capacityResult.agent1_result,
+        capacity_utilization: totalAvailable > 0 ? totalDemanded / totalAvailable : 0,
+        bottleneck_detected: newBottleneckWCs.length > 0,
+        bottleneck_work_centers: newBottleneckWCs,
+        reasoning: newBottleneckWCs.length === 0
+          ? 'After reallocation to NW03, all work centers are within capacity.'
+          : `After partial reallocation, ${newBottleneckWCs.join(', ')} remain above threshold.`,
+      },
+    };
+    setSimulatedCapacityResult(simulated);
+    setReallocationApplied(true);
+    setBottleneckCache(prev => ({ ...prev, [factory]: newBottleneckWCs.length > 0 }));
+  };
 
   // Auto-run sourcing analysis when Raw Material Needs tab is active
   useEffect(() => {
@@ -163,7 +202,7 @@ export default function App() {
       {/* Factory/Scenario controls — only on pulse and stream tabs */}
       {showControls && (
         <div className="no-print" style={{ display: 'flex', gap: 12, alignItems: 'flex-end', marginBottom: 20, flexWrap: 'wrap' }}>
-          <FactorySelector factories={factories} value={factory} onChange={setFactory} />
+          <FactorySelector factories={factories} value={factory} onChange={setFactory} bottleneckFactories={new Set(Object.entries(bottleneckCache).filter(([,v]) => v).map(([k]) => k))} />
           <ScenarioSelector scenarios={scenarios} value={scenario} onChange={setScenario} />
           {loading && (
             <span style={{ fontSize: 13, color: '#6b7280', alignSelf: 'center' }}>Updating…</span>
@@ -234,27 +273,56 @@ export default function App() {
             </p>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-            <span style={{ fontSize: 13, color: '#6b7280' }}>
-              <strong style={{ color: '#111827', fontSize: 15 }}>{capacityResult.agent1_result.factory}</strong>
-              {' · '}{capacityResult.agent1_result.period}
-              {' · '}Overall utilization:{' '}
-              <strong style={{ color: '#111827' }}>
-                {(capacityResult.agent1_result.capacity_utilization * 100).toFixed(1)}%
-              </strong>
-            </span>
-            <DataQualityBadge
-              excludedRows={capacityResult.agent1_result.excluded_rows}
-              flagCount={capacityResult.agent1_result.flag_count}
-              reconstructedRows={capacityResult.agent1_result.reconstructed_rows}
-            />
-          </div>
-          <CapacityChart data={capacityResult.per_work_center} />
-          <BottleneckAlert result={capacityResult.agent1_result} />
-          {capacityResult.reallocation && (
-            <ReallocationBanner reallocation={capacityResult.reallocation} />
+          {/* Simulated state banner */}
+          {reallocationApplied && simulatedCapacityResult && (
+            <div style={{
+              background: '#eff6ff', border: '1px solid #93c5fd', borderRadius: 8,
+              padding: '10px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8,
+            }}>
+              <span style={{ fontSize: 13, color: '#1d4ed8', fontWeight: 600 }}>
+                Simulated view — after reallocation to NW03
+              </span>
+              <button onClick={() => { setReallocationApplied(false); setSimulatedCapacityResult(null); }} style={{
+                fontSize: 12, cursor: 'pointer', background: 'transparent',
+                border: '1px solid #93c5fd', borderRadius: 5, color: '#1d4ed8', padding: '3px 10px',
+              }}>
+                Reset to original
+              </button>
+            </div>
           )}
-          <Agent2Panel verdict={capacityResult.agent2_verdict} />
+
+          {(() => {
+            const displayed = simulatedCapacityResult ?? capacityResult;
+            return (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                  <span style={{ fontSize: 13, color: '#6b7280' }}>
+                    <strong style={{ color: '#111827', fontSize: 15 }}>{displayed.agent1_result.factory}</strong>
+                    {' · '}{displayed.agent1_result.period}
+                    {' · '}Overall utilization:{' '}
+                    <strong style={{ color: '#111827' }}>
+                      {(displayed.agent1_result.capacity_utilization * 100).toFixed(1)}%
+                    </strong>
+                  </span>
+                  <DataQualityBadge
+                    excludedRows={displayed.agent1_result.excluded_rows}
+                    flagCount={displayed.agent1_result.flag_count}
+                    reconstructedRows={displayed.agent1_result.reconstructed_rows}
+                  />
+                </div>
+                <CapacityChart data={displayed.per_work_center} />
+                <BottleneckAlert result={displayed.agent1_result} />
+                {capacityResult.reallocation && (
+                  <ReallocationBanner
+                    reallocation={capacityResult.reallocation}
+                    onApply={!reallocationApplied ? handleApplyReallocation : undefined}
+                    applied={reallocationApplied}
+                  />
+                )}
+                <Agent2Panel verdict={displayed.agent2_verdict} />
+              </>
+            );
+          })()}
         </div>
       )}
 

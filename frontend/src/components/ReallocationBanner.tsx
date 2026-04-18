@@ -2,6 +2,8 @@ import type { ReallocationSuggestion } from '../types';
 
 interface Props {
   reallocation: ReallocationSuggestion;
+  onApply?: () => void;
+  applied?: boolean;
 }
 
 function Metric({ label, value, sub, valueColor }: {
@@ -42,7 +44,7 @@ function IntensityBar({ source, target, sourceLabel, targetLabel }: {
   );
 }
 
-export function ReallocationBanner({ reallocation: r }: Props) {
+export function ReallocationBanner({ reallocation: r, onApply, applied }: Props) {
   const canAbsorb = r.can_absorb;
   const bg     = canAbsorb ? '#f0fdf4' : '#fffbeb';
   const border = canAbsorb ? '#86efac' : '#fde68a';
@@ -59,19 +61,36 @@ export function ReallocationBanner({ reallocation: r }: Props) {
   return (
     <div style={{ background: bg, border: `1px solid ${border}`, borderRadius: 8, padding: '14px 16px' }}>
       {/* Title row */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 16 }}>{canAbsorb ? '↗' : '⚠'}</span>
           <span style={{ fontWeight: 700, color: titleColor, fontSize: 14 }}>
             NW03 Reallocation — {canAbsorb ? 'Feasible' : 'Partially Feasible'}
           </span>
         </div>
-        <span style={{
-          fontSize: 11, fontWeight: 700, color: titleColor,
-          background: border, borderRadius: 4, padding: '2px 8px',
-        }}>
-          {absorptionPct}% capacity absorbable
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{
+            fontSize: 11, fontWeight: 700, color: titleColor,
+            background: border, borderRadius: 4, padding: '2px 8px',
+          }}>
+            {absorptionPct}% capacity absorbable
+          </span>
+          {onApply && !applied && (
+            <button onClick={onApply} style={{
+              fontSize: 12, fontWeight: 700, cursor: 'pointer',
+              background: canAbsorb ? '#16a34a' : '#d97706',
+              color: '#fff', border: 'none', borderRadius: 5,
+              padding: '4px 12px',
+            }}>
+              Apply Reallocation
+            </button>
+          )}
+          {applied && (
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#16a34a', background: '#dcfce7', borderRadius: 4, padding: '2px 8px' }}>
+              ✓ Applied
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Absorption bar */}
