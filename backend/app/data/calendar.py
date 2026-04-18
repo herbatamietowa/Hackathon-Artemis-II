@@ -16,7 +16,7 @@ def build_week_to_month_map(calendar_df: pd.DataFrame, plant: str = "NW01") -> d
     """
     cal = calendar_df.copy()
     # Row index is attribute name; columns are date/week labels
-    cal = cal.set_index(cal.columns[0]) if not isinstance(cal.index, pd.Index) else cal
+    cal = cal.set_index(cal.columns[0])
 
     # Find the rows we need
     idx = cal.index.astype(str).str.strip()
@@ -76,7 +76,7 @@ def weekly_to_monthly(
 def get_working_days_per_month(calendar_df: pd.DataFrame, plant: str = "NW01") -> dict[str, float]:
     """Return {month_label: working_days} for weighting partial-week demand."""
     cal = calendar_df.copy()
-    cal = cal.set_index(cal.columns[0]) if not isinstance(cal.index, pd.Index) else cal
+    cal = cal.set_index(cal.columns[0])
     idx = cal.index.astype(str).str.strip()
 
     wd_row_name = f"Working Days {plant}"

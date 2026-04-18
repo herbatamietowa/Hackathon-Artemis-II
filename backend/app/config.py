@@ -12,9 +12,10 @@ GEMINI_BASE_URL: str = "https://generativelanguage.googleapis.com/v1beta/openai/
 AGENT2_MODEL: str = "gemini-2.0-flash"
 AGENT2_FALLBACK_MODEL: str = "gemini-1.5-flash"
 
-DATA_PATH: Path = Path(os.getenv("DATA_PATH", "/data/hackathon_dataset.xlsx"))
+_PROJECT_ROOT = Path(__file__).parents[2]  # backend/app/config.py → project root
+DATA_PATH: Path = Path(os.getenv("DATA_PATH", str(_PROJECT_ROOT / "data" / "hackathon_dataset.xlsx")))
 
 BOTTLENECK_THRESHOLD: float = 0.90
-HIGH_PROB_THRESHOLD: float = 0.75   # min probability (%) for high_prob_only scenario
+HIGH_PROB_THRESHOLD: float = 75.0   # min probability (%) for high_prob_only scenario
 
 SCENARIOS: list[str] = ["100_pct", "probability_weighted", "high_prob_only"]
