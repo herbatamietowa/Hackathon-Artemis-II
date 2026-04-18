@@ -10,6 +10,19 @@ import { ScenarioSelector } from './components/ScenarioSelector';
 import { SourcingPanel } from './components/SourcingPanel';
 import type { AnalyzeResponse, SourcingResponse } from './types';
 
+const PRINT_STYLES = `
+@media print {
+  .no-print { display: none !important; }
+  .print-section { display: flex !important; flex-direction: column; gap: 16px; }
+  .print-section + .print-section { margin-top: 32px; page-break-before: always; }
+  .print-header { display: block !important; }
+  @page { margin: 18mm 14mm; }
+}
+@media screen {
+  .print-header { display: none; }
+}
+`;
+
 type Tab = 'capacity' | 'sourcing';
 
 export default function App() {
@@ -52,20 +65,55 @@ export default function App() {
   };
 
   const loading = tab === 'capacity' ? loadingCapacity : loadingSourcing;
+  const hasResults = capacityResult || sourcingResult;
+
+  const handlePrint = () => {
+    const date = new Date().toISOString().slice(0, 10);
+    const prev = document.title;
+
+    document.title = `${factory}_${scenario}_${date}`;
+
+    const restoreTitle = () => {
+      document.title = prev;
+      window.removeEventListener('afterprint', restoreTitle);
+    };
+
+    window.addEventListener('afterprint', restoreTitle);
+
+    window.print();
+  };
 
   return (
     <div style={{ fontFamily: 'system-ui, sans-serif', maxWidth: 960, margin: '0 auto', padding: '24px 16px' }}>
+      <style dangerouslySetInnerHTML={{ __html: PRINT_STYLES }} />
+
       {/* Header */}
-      <h1 style={{ fontSize: 22, fontWeight: 700, color: '#111827', margin: '0 0 2px' }}>
-        Predictive Manufacturing
-      </h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 2 }}>
+        <h1 style={{ fontSize: 22, fontWeight: 700, color: '#111827', margin: 0 }}>
+          Predictive Manufacturing
+        </h1>
+        {hasResults && (
+          <button onClick={handlePrint} className="no-print" style={printBtnStyle} title="Download PDF">
+            &#128438; Print / Save PDF
+          </button>
+        )}
+      </div>
       <p style={{ margin: '0 0 20px', color: '#6b7280', fontSize: 14 }}>
         Capacity planning &amp; supply chain scenario analysis
       </p>
 
+      {/* Print-only header with metadata */}
+      <div className="print-header" style={{ marginBottom: 20, borderBottom: '1px solid #e5e7eb', paddingBottom: 12 }}>
+        <p style={{ margin: 0, fontSize: 13, color: '#374151' }}>
+          <strong>Factory:</strong> {factory} &nbsp;·&nbsp;
+          <strong>Scenario:</strong> {scenario.replace(/_/g, ' ')} &nbsp;·&nbsp;
+          <strong>Generated:</strong> {new Date().toLocaleString()}
+        </p>
+      </div>
+
       {/* Offline banner */}
       {offline && (
-        <div style={{
+        <div className="no-print" style={{
           background: '#fffbeb', border: '1px solid #fbbf24', borderRadius: 8,
           padding: '10px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8,
         }}>
@@ -77,7 +125,7 @@ export default function App() {
       )}
 
       {/* Controls */}
-      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', marginBottom: 20, flexWrap: 'wrap' }}>
+      <div className="no-print" style={{ display: 'flex', gap: 12, alignItems: 'flex-end', marginBottom: 20, flexWrap: 'wrap' }}>
         <FactorySelector factories={factories} value={factory} onChange={setFactory} />
         <ScenarioSelector scenarios={scenarios} value={scenario} onChange={setScenario} />
         <button onClick={run} disabled={loading} style={btnStyle}>
@@ -86,7 +134,7 @@ export default function App() {
       </div>
 
       {/* Tab bar */}
-      <div style={{ display: 'flex', gap: 0, borderBottom: '2px solid #e5e7eb', marginBottom: 20 }}>
+      <div className="no-print" style={{ display: 'flex', gap: 0, borderBottom: '2px solid #e5e7eb', marginBottom: 20 }}>
         <TabButton active={tab === 'capacity'} onClick={() => setTab('capacity')}>
           Capacity
         </TabButton>
@@ -98,16 +146,21 @@ export default function App() {
       {loading && <LoadingState />}
 
       {error && (
-        <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, padding: '12px 16px', color: '#991b1b', fontSize: 13 }}>
+        <div className="no-print" style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, padding: '12px 16px', color: '#991b1b', fontSize: 13 }}>
           {error}
         </div>
       )}
 
-      {/* Capacity tab */}
-      {tab === 'capacity' && capacityResult && !loadingCapacity && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Capacity section — visible on screen only when tab=capacity; always visible in print */}
+      {capacityResult && !loadingCapacity && (
+        <div
+          className="print-section"
+          style={{ display: tab === 'capacity' ? 'flex' : 'none', flexDirection: 'column', gap: 16 }}
+        >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
             <span style={{ fontSize: 13, color: '#6b7280' }}>
+              <strong style={{ color: '#111827', fontSize: 15 }}>Capacity Analysis</strong>
+              {' — '}
               {capacityResult.agent1_result.factory} · {capacityResult.agent1_result.period} · Overall utilization:{' '}
               <strong style={{ color: '#111827' }}>
                 {(capacityResult.agent1_result.capacity_utilization * 100).toFixed(1)}%
@@ -125,12 +178,18 @@ export default function App() {
         </div>
       )}
 
-      {/* Sourcing tab */}
-      {tab === 'sourcing' && sourcingResult && !loadingSourcing && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <p style={{ margin: 0, fontSize: 13, color: '#6b7280' }}>
-            {sourcingResult.factory} · {sourcingResult.period} · {sourcingResult.scenario.replace('_', ' ')}
-          </p>
+      {/* Sourcing section — visible on screen only when tab=sourcing; always visible in print */}
+      {sourcingResult && !loadingSourcing && (
+        <div
+          className="print-section"
+          style={{ display: tab === 'sourcing' ? 'flex' : 'none', flexDirection: 'column', gap: 12 }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 15, fontWeight: 700, color: '#111827' }}>Sourcing Analysis</span>
+            <span style={{ fontSize: 13, color: '#6b7280' }}>
+              {sourcingResult.factory} · {sourcingResult.period} · {sourcingResult.scenario.replace(/_/g, ' ')}
+            </span>
+          </div>
           <SourcingPanel data={sourcingResult} />
         </div>
       )}
@@ -176,4 +235,10 @@ const btnStyle: React.CSSProperties = {
   padding: '7px 20px', borderRadius: 6, border: 'none',
   background: '#2563eb', color: '#fff', fontSize: 14, fontWeight: 600,
   cursor: 'pointer', height: 36,
+};
+
+const printBtnStyle: React.CSSProperties = {
+  padding: '6px 14px', borderRadius: 6, border: '1px solid #d1d5db',
+  background: '#fff', color: '#374151', fontSize: 13, fontWeight: 500,
+  cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
 };
