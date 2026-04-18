@@ -105,3 +105,36 @@ class ScenarioListResponse(BaseModel):
 
 class FactoryListResponse(BaseModel):
     factories: list[str]
+
+
+# ---------------------------------------------------------------------------
+# Sourcing schemas
+# ---------------------------------------------------------------------------
+
+class SourcingRequest(BaseModel):
+    factory: str
+    scenario: str
+    period: Optional[str] = None
+
+
+class SourcingMaterial(BaseModel):
+    raw_material_code: str
+    raw_material_name: str
+    unit: str
+    total_needed: float          # kg/units needed for gap demand
+    lead_time_days: int          # from BOM Production LT in Weeks × 7
+    order_by_date: str           # ISO date YYYY-MM-DD
+    days_until_order: int        # negative = already overdue
+    status: str                  # "on_track" | "order_soon" | "urgent" | "overdue"
+    finished_goods: list[str]    # FG material codes that drive this RM demand
+
+
+class SourcingResponse(BaseModel):
+    factory: str
+    scenario: str
+    period: str
+    materials: list[SourcingMaterial]
+    on_track_count: int
+    order_soon_count: int
+    urgent_count: int
+    overdue_count: int

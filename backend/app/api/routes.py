@@ -10,6 +10,8 @@ from .schemas import (
     AnalyzeResponse,
     FactoryListResponse,
     ScenarioListResponse,
+    SourcingRequest,
+    SourcingResponse,
     WCLoadModel,
 )
 from ..config import DATA_PATH, SCENARIOS
@@ -80,4 +82,16 @@ def analyze(req: AnalyzeRequest) -> AnalyzeResponse:
         )
     except Exception as exc:
         logger.exception("analyze endpoint error: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@router.post("/sourcing", response_model=SourcingResponse)
+def sourcing(req: SourcingRequest) -> SourcingResponse:
+    if req.scenario not in SCENARIOS:
+        raise HTTPException(status_code=400, detail=f"Unknown scenario: {req.scenario}")
+    try:
+        from ..engine.sourcing import compute_sourcing_plan
+        return compute_sourcing_plan(req.factory, req.scenario, req.period, DATA_PATH)
+    except Exception as exc:
+        logger.exception("sourcing endpoint error: %s", exc)
         raise HTTPException(status_code=500, detail=str(exc))

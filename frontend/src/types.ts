@@ -40,3 +40,32 @@ export interface AnalyzeRequest {
   scenario: string;
   period?: string;
 }
+
+export interface SourcingMaterial {
+  raw_material_code: string;
+  raw_material_name: string;
+  unit: string;
+  total_needed: number;
+  lead_time_days: number;
+  order_by_date: string;
+  days_until_order: number;
+  status: 'on_track' | 'order_soon' | 'urgent' | 'overdue';
+  finished_goods: string[];
+}
+
+export interface SourcingResponse {
+  factory: string;
+  scenario: string;
+  period: string;
+  materials: SourcingMaterial[];
+  on_track_count: number;
+  order_soon_count: number;
+  urgent_count: number;
+  overdue_count: number;
+}
+
+export interface SourcingRequest {
+  factory: string;
+  scenario: string;
+  period?: string;
+}

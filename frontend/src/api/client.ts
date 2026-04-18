@@ -1,4 +1,4 @@
-import type { AnalyzeRequest, AnalyzeResponse } from '../types';
+import type { AnalyzeRequest, AnalyzeResponse, SourcingRequest, SourcingResponse } from '../types';
 
 const BASE = '/api';
 
@@ -26,4 +26,5 @@ export const api = {
   scenarios: () => get<{ scenarios: string[] }>('/scenarios'),
   factories: () => get<{ factories: string[] }>('/factories'),
   analyze: (req: AnalyzeRequest) => post<AnalyzeResponse>('/analyze', req),
+  sourcing: (req: SourcingRequest) => post<SourcingResponse>('/sourcing', req),
 };
