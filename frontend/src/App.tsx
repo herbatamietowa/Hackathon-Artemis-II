@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from './api/client';
 import { Agent2Panel } from './components/Agent2Panel';
+import { DataUploadPanel } from './components/DataUploadPanel';
 import { BottleneckAlert } from './components/BottleneckAlert';
 import { CapacityChart } from './components/CapacityChart';
 import { DataQualityBadge } from './components/DataQualityBadge';
@@ -15,7 +16,7 @@ import { SourcingPanel } from './components/SourcingPanel';
 import type { AnalyzeResponse, MaterialOption, RawMaterialItem, SourcingResponse } from './types';
 // RawMaterialItem used in useState generic below
 
-type Tab = 'project' | 'order' | 'pulse' | 'stream' | 'disaster';
+type Tab = 'project' | 'order' | 'pulse' | 'stream' | 'disaster' | 'import';
 
 const SCENARIO_LABELS: Record<string, string> = {
   high_prob_only: 'Guaranteed Floor',
@@ -227,6 +228,9 @@ export default function App() {
         <TabButton active={tab === 'disaster'} onClick={() => setTab('disaster')} danger>
           🔴 Disruption Sim
         </TabButton>
+        <TabButton active={tab === 'import'} onClick={() => setTab('import')}>
+          ⬆ Import Data
+        </TabButton>
       </div>
 
       {loading && <LoadingState />}
@@ -357,6 +361,16 @@ export default function App() {
 
       {/* Disruption Sim */}
       {tab === 'disaster' && <DisasterPanel factories={factories} scenarios={scenarios} />}
+
+      {/* Import Data */}
+      {tab === 'import' && (
+        <DataUploadPanel onUploadSuccess={() => {
+          api.factories().then(r => setFactories(r.factories)).catch(() => {});
+          api.plates().then(r => setPlates(r.materials)).catch(() => {});
+          api.gaskets().then(r => setGaskets(r.materials)).catch(() => {});
+          api.rawMaterials().then(r => setRawMaterials(r.materials)).catch(() => {});
+        }} />
+      )}
     </div>
   );
 }

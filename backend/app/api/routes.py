@@ -5,10 +5,11 @@ import re
 from datetime import date
 
 import pandas as pd
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, File, HTTPException, UploadFile
 
 from .schemas import (
     AgentTurn,
+    UploadDataResponse,
     AnalyzeRequest,
     AnalyzeResponse,
     ApproveProjectRequest,
@@ -497,3 +498,116 @@ def approve_project(req: ApproveProjectRequest) -> dict:
     except Exception as exc:
         logger.warning("Could not write approved project: %s", exc)
     return {"status": "approved", "record": record}
+
+
+@router.post("/upload-data", response_model=UploadDataResponse)
+async def upload_data(file: UploadFile = File(...)) -> UploadDataResponse:
+    """Merge an uploaded .xlsx into the main dataset and invalidate the cache."""
+    import io
+    from ..data.loader import SHEET_NAMES, invalidate_cache
+
+    contents = await file.read()
+    try:
+        uploaded = pd.read_excel(io.BytesIO(contents), sheet_name=None, engine="openpyxl")
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Cannot read uploaded file: {exc}")
+
+    uploaded_norm = {k.strip(): v for k, v in uploaded.items()}
+
+    # Load current workbook (bypass lru_cache so we get current state from disk)
+    try:
+        current = pd.read_excel(DATA_PATH, sheet_name=None, engine="openpyxl")
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Cannot read dataset: {exc}")
+    current_norm = {k.strip(): v for k, v in current.items()}
+
+    known = {s.strip() for s in SHEET_NAMES}
+    rows_added: dict[str, int] = {}
+    merged: dict[str, pd.DataFrame] = {}
+
+    for up_name, up_df in uploaded_norm.items():
+        # Match uploaded sheet to a known sheet (exact or leading 3-char prefix)
+        target = next(
+            (k for k in known if up_name == k or up_name[:3] == k[:3]),
+            None,
+        )
+        if target is None:
+            continue
+        existing = current_norm.get(target, pd.DataFrame())
+        combined = pd.concat([existing, up_df], ignore_index=True) if not existing.empty else up_df
+        merged[target] = combined
+        rows_added[target] = len(up_df)
+
+    if not merged:
+        raise HTTPException(status_code=400, detail="No sheets matched known dataset sheets. Check your file.")
+
+    # Write all sheets back — try original path, fall back to /tmp if read-only
+    all_sheets = {**current_norm, **merged}
+
+    try:
+        with pd.ExcelWriter(DATA_PATH, engine="openpyxl") as writer:
+            for sheet_name, df in all_sheets.items():
+                df.to_excel(writer, sheet_name=sheet_name[:31], index=False)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to save dataset: {exc}")
+
+    invalidate_cache()
+    return UploadDataResponse(sheets_merged=list(rows_added.keys()), rows_added=rows_added)
+
+
+@router.get("/sample-factory-data")
+def sample_factory_data():
+    """Return a sample .xlsx for a new factory NW16 that can be uploaded via /upload-data."""
+    import io
+    from fastapi.responses import StreamingResponse
+
+    # Weeks covering 2026 (same format the calendar engine uses)
+    weeks = [f"Week {w} 2026" for w in range(1, 53)]
+    wcs = ["PRESSING", "WELDING", "ASSEMBLY"]
+
+    # 2_1: Work Center Capacity Weekly — 120h per week per WC
+    rows_21 = []
+    for wc in wcs:
+        row: dict = {"Work center code": f"P01_NW16_{wc}", "Measure": "Available Capacity, hours"}
+        for week in weeks:
+            row[week] = 120.0
+        rows_21.append(row)
+
+    # 2_5: WC Schedule limits (OEE)
+    rows_25 = [
+        {"Plant": "NW16", "Plant name": "Nordic Hub", "WC-Description": wc,
+         "OEE (in %)": 0.85, "AP Limit": "Available Capacity, hours"}
+        for wc in wcs
+    ]
+
+    # 2_6: Tool master — a few mock materials active at NW16
+    mat_codes = [f"NW16-MAT-{i:04d}" for i in range(1, 6)]
+    rows_26 = []
+    for mat in mat_codes:
+        rows_26.append({
+            "Sap code": mat, "Plant": "NW16", "Material Status": "Active",
+            "Work center": "PRESSING", "Cycle time": 2.5,
+            "Connector Plant_Material nr": f"NW16_{mat}",
+            "Cycle times Standard Value (Machine)": 2.5, "Rev no": 1,
+        })
+
+    # 2_3: SAP MasterData for the mock materials
+    rows_23 = [
+        {"Sap code": mat, "Description": f"NW16 Test Part {mat}",
+         "Standard Cost in EUR": 180.0, "G35 - Plant": "NW16"}
+        for mat in mat_codes
+    ]
+
+    buf = io.BytesIO()
+    with pd.ExcelWriter(buf, engine="openpyxl") as writer:
+        pd.DataFrame(rows_21).to_excel(writer, sheet_name="2_1 Work Center Capacity Weekly", index=False)
+        pd.DataFrame(rows_25).to_excel(writer, sheet_name="2_5 WC Schedule_limits", index=False)
+        pd.DataFrame(rows_26).to_excel(writer, sheet_name="2_6 Tool_material nr master", index=False)
+        pd.DataFrame(rows_23).to_excel(writer, sheet_name="2_3 SAP MasterData", index=False)
+    buf.seek(0)
+
+    return StreamingResponse(
+        buf,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=mock_factory_NW16.xlsx"},
+    )

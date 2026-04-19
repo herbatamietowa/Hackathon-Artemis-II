@@ -138,8 +138,14 @@
   "hotPaths": [
     {
       "path": "frontend\\src\\App.tsx",
-      "accessCount": 35,
-      "lastAccessed": 1776564733124,
+      "accessCount": 43,
+      "lastAccessed": 1776581461915,
+      "type": "file"
+    },
+    {
+      "path": "backend\\app\\api\\routes.py",
+      "accessCount": 43,
+      "lastAccessed": 1776583313827,
       "type": "file"
     },
     {
@@ -149,15 +155,15 @@
       "type": "file"
     },
     {
-      "path": "backend\\app\\api\\routes.py",
-      "accessCount": 23,
-      "lastAccessed": 1776567094180,
-      "type": "file"
-    },
-    {
       "path": "frontend\\src\\components\\ProjectArchitect.tsx",
       "accessCount": 18,
       "lastAccessed": 1776567247167,
+      "type": "file"
+    },
+    {
+      "path": "backend\\app\\api\\schemas.py",
+      "accessCount": 17,
+      "lastAccessed": 1776581364569,
       "type": "file"
     },
     {
@@ -167,21 +173,15 @@
       "type": "file"
     },
     {
-      "path": "backend\\app\\api\\schemas.py",
-      "accessCount": 16,
-      "lastAccessed": 1776566191137,
-      "type": "file"
-    },
-    {
       "path": "frontend\\src\\types.ts",
-      "accessCount": 15,
-      "lastAccessed": 1776566225469,
+      "accessCount": 16,
+      "lastAccessed": 1776581385375,
       "type": "file"
     },
     {
       "path": "frontend\\src\\api\\client.ts",
-      "accessCount": 14,
-      "lastAccessed": 1776566194887,
+      "accessCount": 16,
+      "lastAccessed": 1776581391005,
       "type": "file"
     },
     {
@@ -209,6 +209,12 @@
       "type": "file"
     },
     {
+      "path": "",
+      "accessCount": 4,
+      "lastAccessed": 1776582154602,
+      "type": "directory"
+    },
+    {
       "path": "frontend\\src\\components\\ScenarioSelector.tsx",
       "accessCount": 3,
       "lastAccessed": 1776544594859,
@@ -228,8 +234,32 @@
     },
     {
       "path": "backend\\app\\config.py",
-      "accessCount": 1,
-      "lastAccessed": 1776535627739,
+      "accessCount": 3,
+      "lastAccessed": 1776582012033,
+      "type": "file"
+    },
+    {
+      "path": "backend\\app\\data\\loader.py",
+      "accessCount": 3,
+      "lastAccessed": 1776582157811,
+      "type": "file"
+    },
+    {
+      "path": "backend\\app\\engine\\capacity.py",
+      "accessCount": 2,
+      "lastAccessed": 1776581157960,
+      "type": "file"
+    },
+    {
+      "path": "backend\\app\\data\\joins.py",
+      "accessCount": 2,
+      "lastAccessed": 1776581189676,
+      "type": "file"
+    },
+    {
+      "path": "backend\\requirements.txt",
+      "accessCount": 2,
+      "lastAccessed": 1776581351414,
       "type": "file"
     },
     {
@@ -290,6 +320,18 @@
       "path": "frontend\\src\\components\\DataQualityBadge.tsx",
       "accessCount": 1,
       "lastAccessed": 1776544281912,
+      "type": "file"
+    },
+    {
+      "path": "backend\\app\\api",
+      "accessCount": 1,
+      "lastAccessed": 1776581120319,
+      "type": "directory"
+    },
+    {
+      "path": "frontend\\src\\components\\DataUploadPanel.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1776581424366,
       "type": "file"
     }
   ],

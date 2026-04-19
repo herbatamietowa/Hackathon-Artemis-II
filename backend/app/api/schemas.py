@@ -404,3 +404,8 @@ class RawMaterialOrderRequest(BaseModel):
     quantity: float
     factory: str
     deadline: Optional[str] = None
+
+
+class UploadDataResponse(BaseModel):
+    sheets_merged: list[str]
+    rows_added: dict[str, int]
