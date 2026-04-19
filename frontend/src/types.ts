@@ -97,21 +97,6 @@ export interface SourcingRequest {
   period?: string;
 }
 
-export interface ReallocationSuggestion {
-  available_headroom_hours: number;
-  overflow_hours: number;
-  can_absorb: boolean;
-  suggestion: string;
-  material_compatibility_pct: number;
-  compatible_materials: number;
-  total_materials: number;
-  cost_delta_pct: number;
-  transport_lt_delta_days: number;
-  source_grid_intensity: number;
-  target_grid_intensity: number;
-  carbon_delta_pct: number;
-}
-
 export interface DisasterAlternative {
   plant: string;
   plant_name: string;
@@ -284,6 +269,21 @@ export interface RawMaterialItem {
   name: string;
   unit: string;
   stock_qty: number;
+}
+
+export interface DebateProjectPathRequest {
+  plate_code: string;
+  quantity: number;
+  user_argument?: string;
+}
+
+export interface DebateProjectPathResponse {
+  agreed_path: SimulationPath | null;
+  debate_history: AgentTurn[];
+  status: 'CONSENSUS' | 'CONTESTED' | 'USER_OVERRIDE';
+  parameters_considered: string[];
+  plate_code: string;
+  plate_name: string;
 }
 
 export interface RawMaterialOrderRequest {

@@ -8,10 +8,13 @@ import pandas as pd
 from fastapi import APIRouter, HTTPException
 
 from .schemas import (
+    AgentTurn,
     AnalyzeRequest,
     AnalyzeResponse,
     ApproveProjectRequest,
     ConfirmProjectRequest,
+    DebateProjectPathRequest,
+    DebateProjectPathResponse,
     DisasterRequest,
     DisasterResult,
     FactoryListResponse,
@@ -410,6 +413,49 @@ def order_raw_material(req: RawMaterialOrderRequest) -> dict:
     except Exception as exc:
         logger.warning("Could not write raw material order: %s", exc)
     return {"status": "ordered", "order_id": order_id}
+
+
+@router.post("/debate-project-path", response_model=DebateProjectPathResponse)
+def debate_project_path(req: DebateProjectPathRequest) -> DebateProjectPathResponse:
+    try:
+        from ..engine.project_simulation import compute_project_simulation
+        from ..agents.path_debate import run_path_debate
+
+        result = compute_project_simulation(
+            plate_code=req.plate_code,
+            quantity=req.quantity,
+            data_path=DATA_PATH,
+        )
+
+        if not result.paths:
+            raise HTTPException(status_code=400, detail="No feasible paths found for this material.")
+
+        paths_dicts = [vars(p) for p in result.paths]
+        debate = run_path_debate(
+            paths=paths_dicts,
+            plate_code=result.plate_code,
+            plate_name=result.plate_name,
+            user_argument=req.user_argument,
+        )
+
+        agreed = next(
+            (p for p in result.paths if p.name == debate["agreed_path_name"]),
+            result.paths[0],
+        )
+
+        return DebateProjectPathResponse(
+            agreed_path=SimulationPathModel(**vars(agreed)),
+            debate_history=[AgentTurn(**t) for t in debate["debate_history"]],
+            status=debate["status"],
+            parameters_considered=debate["parameters_considered"],
+            plate_code=result.plate_code,
+            plate_name=result.plate_name,
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("debate-project-path error: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc))
 
 
 @router.post("/approve-project")

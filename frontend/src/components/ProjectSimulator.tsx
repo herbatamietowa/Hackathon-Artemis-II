@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api/client';
-import type { MaterialOption, ProjectArchitectResponse, ProjectSimulationResult, RawMaterialStatus, ScenarioPath, SimulationPath } from '../types';
+import type { AgentTurn, DebateProjectPathResponse, MaterialOption, ProjectArchitectResponse, ProjectSimulationResult, RawMaterialStatus, ScenarioPath, SimulationPath } from '../types';
 
 const PLANT_INFO: Record<string, { short: string; flag: string; region: string }> = {
   NW01: { short: 'Midwest',    flag: '🇺🇸', region: 'N. America' },
@@ -27,6 +27,7 @@ const THEME: Record<string, { bg: string; border: string; accent: string; tag: s
   'Eco-Warrior':     { bg: '#f0fdf4', border: '#86efac', accent: '#16a34a', tag: '#dcfce7', tagText: '#15803d' },
   'Budget Master':   { bg: '#fffbeb', border: '#fde68a', accent: '#d97706', tag: '#fef3c7', tagText: '#b45309' },
   'Speed Demon':     { bg: '#eff6ff', border: '#bfdbfe', accent: '#2563eb', tag: '#dbeafe', tagText: '#1d4ed8' },
+  'The AI Consensus': { bg: '#faf5ff', border: '#c4b5fd', accent: '#7c3aed', tag: '#ede9fe', tagText: '#6d28d9' },
 };
 
 type ProjectItem = { id: string; type: 'plate' | 'gasket'; code: string; qty: number };
@@ -37,6 +38,13 @@ type ItemSimState = {
   error: string | null;
 };
 type Approval = { path: string; cost: number; carbon_score: number; delivery_days: number };
+type DebateState = {
+  loading: boolean;
+  result: DebateProjectPathResponse | null;
+  error: string | null;
+  userArg: string;
+  showFull: boolean;
+};
 
 let _id = 0;
 const genId = () => String(++_id);
@@ -45,6 +53,7 @@ export function ProjectSimulator({ plates, gaskets }: { plates: MaterialOption[]
   const [items, setItems] = useState<ProjectItem[]>([{ id: genId(), type: 'plate', code: '', qty: 100 }]);
   const [simStates, setSimStates] = useState<Record<string, ItemSimState>>({});
   const [approvals, setApprovals] = useState<Record<string, Approval>>({});
+  const [debateStates, setDebateStates] = useState<Record<string, DebateState>>({});
   const timersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   // Auto-set first code when materials load
@@ -89,11 +98,13 @@ export function ProjectSimulator({ plates, gaskets }: { plates: MaterialOption[]
     setItems(prev => prev.filter(i => i.id !== id));
     setSimStates(prev => { const next = { ...prev }; delete next[id]; return next; });
     setApprovals(prev => { const next = { ...prev }; delete next[id]; return next; });
+    setDebateStates(prev => { const next = { ...prev }; delete next[id]; return next; });
   };
 
   const updateItem = (id: string, patch: Partial<ProjectItem>) => {
     setItems(prev => prev.map(i => i.id === id ? { ...i, ...patch } : i));
     setApprovals(prev => { const next = { ...prev }; delete next[id]; return next; });
+    setDebateStates(prev => { const next = { ...prev }; delete next[id]; return next; });
   };
 
   const handleClear = () => {
@@ -101,6 +112,34 @@ export function ProjectSimulator({ plates, gaskets }: { plates: MaterialOption[]
     setItems([{ id, type: 'plate', code: plates[0]?.code ?? '', qty: 100 }]);
     setSimStates({});
     setApprovals({});
+    setDebateStates({});
+  };
+
+  const handleRunDebate = async (itemId: string, plateCode: string, qty: number, userArg?: string) => {
+    setDebateStates(prev => ({
+      ...prev,
+      [itemId]: { loading: true, result: null, error: null, userArg: userArg ?? prev[itemId]?.userArg ?? '', showFull: false },
+    }));
+    try {
+      const res = await api.debateProjectPath({ plate_code: plateCode, quantity: qty, user_argument: userArg || undefined });
+      setDebateStates(prev => ({
+        ...prev,
+        [itemId]: { loading: false, result: res, error: null, userArg: userArg ?? prev[itemId]?.userArg ?? '', showFull: false },
+      }));
+    } catch (e) {
+      setDebateStates(prev => ({
+        ...prev,
+        [itemId]: { loading: false, result: null, error: String(e), userArg: userArg ?? prev[itemId]?.userArg ?? '', showFull: false },
+      }));
+    }
+  };
+
+  const setDebateUserArg = (itemId: string, val: string) => {
+    setDebateStates(prev => ({ ...prev, [itemId]: { ...prev[itemId], loading: false, result: prev[itemId]?.result ?? null, error: prev[itemId]?.error ?? null, userArg: val, showFull: prev[itemId]?.showFull ?? false } }));
+  };
+
+  const toggleDebateFull = (itemId: string) => {
+    setDebateStates(prev => ({ ...prev, [itemId]: { ...prev[itemId], showFull: !prev[itemId]?.showFull } }));
   };
 
   const handleApprove = async (itemId: string, path: SimulationPath) => {
@@ -320,17 +359,76 @@ export function ProjectSimulator({ plates, gaskets }: { plates: MaterialOption[]
                   </div>
                 )}
                 {state.plateResult.paths.length > 0 ? (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14 }}>
-                    {state.plateResult.paths.map(path => (
-                      <PlatePathCard
-                        key={path.name}
-                        path={path}
-                        onApprove={() => handleApprove(item.id, path)}
-                        isApproved={approval?.path === path.name}
-                        anyApproved={anyApprovedInItem}
+                  <>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14 }}>
+                      {state.plateResult.paths.map(path => (
+                        <PlatePathCard
+                          key={path.name}
+                          path={path}
+                          onApprove={() => handleApprove(item.id, path)}
+                          isApproved={approval?.path === path.name}
+                          anyApproved={anyApprovedInItem}
+                        />
+                      ))}
+                      {/* 4th card: AI Consensus */}
+                      {debateStates[item.id]?.result?.agreed_path && (
+                        <ConsensusPathCard
+                          path={debateStates[item.id].result!.agreed_path!}
+                          status={debateStates[item.id].result!.status}
+                          onApprove={() => handleApprove(item.id, debateStates[item.id].result!.agreed_path!)}
+                          isApproved={approval?.path === debateStates[item.id].result!.agreed_path!.name}
+                          anyApproved={anyApprovedInItem}
+                        />
+                      )}
+                      {debateStates[item.id]?.loading && (
+                        <SkeletonBox height={220} label="🤖 Agents debating…" />
+                      )}
+                    </div>
+
+                    {/* Debate summary panel */}
+                    {debateStates[item.id]?.result && (
+                      <DebateSummaryPanel
+                        debate={debateStates[item.id].result!}
+                        showFull={debateStates[item.id].showFull}
+                        onToggleFull={() => toggleDebateFull(item.id)}
                       />
-                    ))}
-                  </div>
+                    )}
+
+                    {/* Debate trigger + reopen */}
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                      <div style={{ flex: 1, minWidth: 220 }}>
+                        <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 4, fontWeight: 600 }}>
+                          {debateStates[item.id]?.result ? 'Add argument to reopen debate' : 'Optional: provide a constraint for the AI debate'}
+                        </div>
+                        <input
+                          type="text"
+                          placeholder="e.g. must arrive within 30 days, prefer European plants…"
+                          value={debateStates[item.id]?.userArg ?? ''}
+                          onChange={e => setDebateUserArg(item.id, e.target.value)}
+                          style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #c4b5fd', fontSize: 13, boxSizing: 'border-box' }}
+                        />
+                      </div>
+                      <button
+                        onClick={() => handleRunDebate(item.id, item.code, item.qty, debateStates[item.id]?.userArg || undefined)}
+                        disabled={debateStates[item.id]?.loading}
+                        style={{
+                          padding: '8px 16px', borderRadius: 6, border: '1px solid #7c3aed',
+                          background: debateStates[item.id]?.loading ? '#f3f4f6' : '#7c3aed',
+                          color: debateStates[item.id]?.loading ? '#9ca3af' : '#fff',
+                          fontSize: 13, fontWeight: 600, cursor: debateStates[item.id]?.loading ? 'default' : 'pointer',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {debateStates[item.id]?.loading ? '⏳ Debating…' : debateStates[item.id]?.result ? '🔄 Reopen Debate' : '🤖 Ask AI Agents'}
+                      </button>
+                    </div>
+
+                    {debateStates[item.id]?.error && (
+                      <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 6, padding: '8px 12px', fontSize: 12, color: '#991b1b' }}>
+                        Debate error: {debateStates[item.id].error}
+                      </div>
+                    )}
+                  </>
                 ) : (
                   <div style={{ textAlign: 'center', padding: '24px 0', color: '#9ca3af', fontSize: 13 }}>
                     No feasible production paths found for this material.
@@ -583,6 +681,142 @@ function GasketPathCard({ path, onConfirm, isConfirmed, anyConfirmed }: {
       >
         {isConfirmed ? '✓ Confirmed — Added to Project' : 'Select & Approve'}
       </button>
+    </div>
+  );
+}
+
+// ── AI Consensus Path Card ────────────────────────────────────────────────────
+
+function ConsensusPathCard({ path, status, onApprove, isApproved, anyApproved }: {
+  path: SimulationPath; status: string; onApprove: () => void; isApproved: boolean; anyApproved: boolean;
+}) {
+  const t = THEME['The AI Consensus'];
+  const statusLabel = status === 'CONSENSUS' ? 'Agreed ✓' : status === 'USER_OVERRIDE' ? 'User-guided' : 'Debated';
+  return (
+    <div style={{
+      background: t.bg, border: `2px solid ${t.border}`, borderRadius: 12, padding: '16px 18px',
+      display: 'flex', flexDirection: 'column', gap: 12,
+      opacity: anyApproved && !isApproved ? 0.5 : 1, transition: 'opacity 0.2s',
+      position: 'relative',
+    }}>
+      <div style={{ position: 'absolute', top: -10, left: 14 }}>
+        <span style={{ background: t.accent, color: '#fff', fontSize: 10, fontWeight: 700, borderRadius: 4, padding: '2px 8px', letterSpacing: 0.5 }}>
+          🤖 AI CONSENSUS
+        </span>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+        <span style={{ fontSize: 22 }}>🤝</span>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 700, fontSize: 14, color: '#111827' }}>The AI Consensus</div>
+          <div style={{ fontSize: 11, color: '#6b7280' }}>Agreed: {path.name} · {path.plant}</div>
+        </div>
+        <span style={{ fontSize: 11, fontWeight: 600, background: t.tag, color: t.tagText, borderRadius: 4, padding: '2px 7px' }}>
+          {statusLabel}
+        </span>
+      </div>
+      <div style={{ background: 'rgba(255,255,255,0.65)', borderRadius: 8, padding: '9px 11px', display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+        <div style={{ textAlign: 'center', flex: 1 }}>
+          <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', marginBottom: 2 }}>Cost</div>
+          <div style={{ fontSize: 16, fontWeight: 800, color: t.accent }}>€{Math.round(path.total_cost_eur).toLocaleString()}</div>
+        </div>
+        <div style={{ textAlign: 'center', flex: 1 }}>
+          <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', marginBottom: 2 }}>Delivery</div>
+          <div style={{ fontSize: 16, fontWeight: 800, color: t.accent }}>{path.delivery_days}d</div>
+        </div>
+        <div style={{ textAlign: 'center', flex: 1 }}>
+          <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', marginBottom: 2 }}>Carbon</div>
+          <div style={{ fontSize: 16, fontWeight: 800, color: carbonColor(path.carbon_score) }}>{path.carbon_score.toFixed(0)}/100</div>
+        </div>
+      </div>
+      <button
+        onClick={onApprove}
+        disabled={anyApproved}
+        style={{
+          padding: '8px 0', borderRadius: 6, border: 'none', width: '100%',
+          background: isApproved ? '#ede9fe' : anyApproved ? '#f3f4f6' : t.accent,
+          color: isApproved ? '#6d28d9' : anyApproved ? '#9ca3af' : '#fff',
+          fontSize: 13, fontWeight: 600, cursor: anyApproved ? 'default' : 'pointer',
+        }}
+      >
+        {isApproved ? '✓ Approved — AI Choice' : 'Select & Approve'}
+      </button>
+    </div>
+  );
+}
+
+// ── Debate Summary Panel ──────────────────────────────────────────────────────
+
+function DebateSummaryPanel({ debate, showFull, onToggleFull }: {
+  debate: DebateProjectPathResponse; showFull: boolean; onToggleFull: () => void;
+}) {
+  const agentStyle = (name: string) => {
+    if (name === 'User') return { icon: '👤', color: '#6366f1' };
+    if (name === 'Cost Specialist') return { icon: '💰', color: '#0891b2' };
+    if (name === 'Sustainability Director') return { icon: '🌱', color: '#059669' };
+    return { icon: '🤖', color: '#6b7280' };
+  };
+  return (
+    <div style={{ background: '#faf5ff', border: '1px solid #c4b5fd', borderRadius: 10, padding: '14px 16px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: '#6d28d9' }}>📋 Debate Summary</span>
+        {debate.parameters_considered.length > 0 && (
+          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', flex: 1 }}>
+            {debate.parameters_considered.map(p => (
+              <span key={p} style={{ fontSize: 10, fontWeight: 600, background: '#ede9fe', color: '#6d28d9', borderRadius: 3, padding: '2px 6px' }}>
+                {p}
+              </span>
+            ))}
+          </div>
+        )}
+        <button onClick={onToggleFull} style={{ background: 'none', border: 'none', color: '#7c3aed', fontSize: 12, cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap' }}>
+          {showFull ? 'Hide ▲' : 'Full debate ▼'}
+        </button>
+      </div>
+      {!showFull ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {debate.debate_history.map((turn: AgentTurn, i: number) => {
+            const s = agentStyle(turn.agent_name);
+            const snippet = turn.message.length > 120 ? turn.message.slice(0, 120) + '…' : turn.message;
+            return (
+              <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                <span style={{ fontSize: 14, flexShrink: 0 }}>{s.icon}</span>
+                <div style={{ flex: 1 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: s.color }}>{turn.agent_name}</span>
+                  {turn.verdict && (
+                    <span style={{ fontSize: 10, fontWeight: 700, marginLeft: 6, color: turn.verdict === 'APPROVED' ? '#16a34a' : '#d97706' }}>
+                      [{turn.verdict}]
+                    </span>
+                  )}
+                  <span style={{ fontSize: 12, color: '#374151', marginLeft: 6 }}>{snippet}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {debate.debate_history.map((turn: AgentTurn, i: number) => {
+            const s = agentStyle(turn.agent_name);
+            return (
+              <div key={i} style={{ borderLeft: `3px solid ${s.color}`, paddingLeft: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                  <span style={{ fontSize: 15 }}>{s.icon}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: s.color }}>{turn.agent_name}</span>
+                  {turn.verdict && (
+                    <span style={{ fontSize: 11, fontWeight: 700, marginLeft: 'auto', color: turn.verdict === 'APPROVED' ? '#16a34a' : '#d97706', background: turn.verdict === 'APPROVED' ? 'rgba(22,163,74,0.1)' : 'rgba(217,119,6,0.1)', padding: '1px 6px', borderRadius: 3 }}>
+                      {turn.verdict}
+                    </span>
+                  )}
+                </div>
+                <p style={{ margin: 0, fontSize: 13, color: '#374151', lineHeight: 1.5 }}>{turn.message}</p>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      <div style={{ marginTop: 10, paddingTop: 8, borderTop: '1px solid #ddd6fe', fontSize: 11, color: '#7c3aed', fontStyle: 'italic' }}>
+        💡 Missing a constraint? Add it in the input below and reopen the debate.
+      </div>
     </div>
   );
 }

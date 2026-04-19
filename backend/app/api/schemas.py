@@ -366,6 +366,21 @@ class ApproveProjectRequest(BaseModel):
 # Raw material ordering schemas
 # ---------------------------------------------------------------------------
 
+class DebateProjectPathRequest(BaseModel):
+    plate_code: str
+    quantity: int = 1
+    user_argument: Optional[str] = None
+
+
+class DebateProjectPathResponse(BaseModel):
+    agreed_path: Optional[SimulationPathModel] = None
+    debate_history: list[AgentTurn] = []
+    status: str = "CONSENSUS"
+    parameters_considered: list[str] = []
+    plate_code: str
+    plate_name: str
+
+
 class RawMaterialItem(BaseModel):
     code: str
     name: str
