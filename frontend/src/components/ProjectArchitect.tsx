@@ -54,6 +54,7 @@ export function ProjectArchitect({
   }, [initialMaterial, initialQty, initialUnit, initialDeadline]);
 
   const selected = rawMaterials.find(m => m.code === material);
+  const estimatedCost = selected?.unit_cost_eur != null ? quantity * selected.unit_cost_eur : null;
   const unit = selected?.unit ?? initialUnit ?? 'PC';
 
   const handleOrder = async () => {
@@ -162,15 +163,29 @@ export function ProjectArchitect({
 
         {/* Stock info for selected material */}
         {selected && (
-          <div style={{ marginTop: 14, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-            <StockChip label="Current stock" value={`${selected.stock_qty.toLocaleString('en-US', { maximumFractionDigits: 1 })} ${selected.unit}`} color={selected.stock_qty > 0 ? '#16a34a' : '#dc2626'} />
-            <StockChip label="You're ordering" value={`${quantity.toLocaleString('en-US', { maximumFractionDigits: 3 })} ${unit}`} color="#2563eb" />
-            {selected.stock_qty > 0 && (
-              <StockChip
-                label="After delivery"
-                value={`≈ ${(selected.stock_qty + quantity).toLocaleString('en-US', { maximumFractionDigits: 1 })} ${unit}`}
-                color="#7c3aed"
-              />
+          <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+              <StockChip label="Current stock" value={`${selected.stock_qty.toLocaleString('en-US', { maximumFractionDigits: 1 })} ${selected.unit}`} color={selected.stock_qty > 0 ? '#16a34a' : '#dc2626'} />
+              <StockChip label="You're ordering" value={`${quantity.toLocaleString('en-US', { maximumFractionDigits: 3 })} ${unit}`} color="#2563eb" />
+              {selected.stock_qty > 0 && (
+                <StockChip
+                  label="After delivery"
+                  value={`≈ ${(selected.stock_qty + quantity).toLocaleString('en-US', { maximumFractionDigits: 1 })} ${unit}`}
+                  color="#7c3aed"
+                />
+              )}
+              {estimatedCost != null && (
+                <StockChip
+                  label="Est. order cost *"
+                  value={`€${estimatedCost.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
+                  color="#b45309"
+                />
+              )}
+            </div>
+            {estimatedCost != null && (
+              <p style={{ margin: 0, fontSize: 11, color: '#9ca3af' }}>
+                * Estimated cost based on finished goods standard cost (SAP). Actual raw material purchase price may differ.
+              </p>
             )}
           </div>
         )}

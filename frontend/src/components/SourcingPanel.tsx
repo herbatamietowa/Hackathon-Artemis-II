@@ -2,7 +2,7 @@ import type { SourcingResponse } from '../types';
 
 interface Props {
   data: SourcingResponse;
-  onOrder?: (code: string, name: string, qty: number, unit: string, deadline: string) => void;
+  onOrder?: (code: string, name: string, qty: number, unit: string, deadline: string, estimatedCost?: number | null) => void;
 }
 
 const STATUS_CONFIG = {
@@ -58,7 +58,7 @@ export function SourcingPanel({ data, onOrder }: Props) {
       )}
 
       {/* Material cards */}
-      {data.materials.map(m => {
+      {data.materials.map((m, _i) => {
         const cfg = STATUS_CONFIG[m.status];
         return (
           <div key={m.raw_material_code} style={{
@@ -94,9 +94,15 @@ export function SourcingPanel({ data, onOrder }: Props) {
                     : `${m.days_until_order}d left`}
                   highlightColor={m.days_until_order <= 0 ? '#ef4444' : m.days_until_order <= 7 ? '#f97316' : '#6b7280'}
                 />
+                {m.estimated_cost_eur != null && (
+                  <Stat
+                    label="Est. cost *"
+                    value={`€${m.estimated_cost_eur.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
+                  />
+                )}
                 {onOrder && (
                   <button
-                    onClick={() => onOrder(m.raw_material_code, m.raw_material_name, m.total_needed, m.unit, m.order_by_date)}
+                    onClick={() => onOrder(m.raw_material_code, m.raw_material_name, m.total_needed, m.unit, m.order_by_date, m.estimated_cost_eur != null && m.total_needed > 0 ? m.estimated_cost_eur / m.total_needed : undefined)}
                     style={{
                       padding: '7px 16px', borderRadius: 6, border: 'none',
                       background: m.status === 'on_track' ? '#2563eb' : cfg.badge,
@@ -112,6 +118,12 @@ export function SourcingPanel({ data, onOrder }: Props) {
           </div>
         );
       })}
+
+      {data.materials.some(m => m.estimated_cost_eur != null) && (
+        <p style={{ margin: 0, fontSize: 11, color: '#9ca3af' }}>
+          * Estimated cost derived from finished goods standard cost (SAP MasterData). Actual raw material purchase price may differ.
+        </p>
+      )}
     </div>
   );
 }

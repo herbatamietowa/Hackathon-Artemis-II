@@ -78,8 +78,13 @@ def compute_sourcing_plan(
     gaskets_df  = _get("1_2")
     projects_df = _get("1_3")
     tool_master = _get("2_6")
+    sap_df      = _get("2_3")
     bom_df      = _get("3_2")
     inv_df      = _get("3_1")
+
+    cost_map: dict[str, float] = {}
+    if not sap_df.empty and "Sap code" in sap_df.columns and "Standard Cost in EUR" in sap_df.columns:
+        cost_map = sap_df.dropna(subset=["Standard Cost in EUR"]).set_index("Sap code")["Standard Cost in EUR"].to_dict()
 
     demand_df, _ = build_demand_frame(plates_df, gaskets_df, projects_df, tool_master, factory)
 
@@ -140,13 +145,14 @@ def compute_sourcing_plan(
     if bom_active.empty:
         bom_active = bom_factory
 
-    # Aggregate: raw_material_code → {total_kg, lead_time_days, finished_goods}
+    # Aggregate: raw_material_code → {total_kg, lead_time_days, finished_goods, estimated_cost_eur}
     rm_needed: dict[str, dict] = defaultdict(lambda: {
         "total_needed": 0.0,
         "lead_time_days": 0,
         "unit": "KG",
         "name": "",
         "finished_goods": set(),
+        "estimated_cost_eur": 0.0,
     })
 
     demand_date = _parse_period(period)
@@ -177,6 +183,9 @@ def compute_sourcing_plan(
             rm_needed[rm_code]["unit"] = unit
             rm_needed[rm_code]["name"] = rm_name
             rm_needed[rm_code]["finished_goods"].add(mat_code)
+            fg_cost = cost_map.get(mat_code, 0.0)
+            if fg_cost > 0:
+                rm_needed[rm_code]["estimated_cost_eur"] += gap_pcs * fg_cost
 
     materials: list[SourcingMaterial] = []
     for rm_code, info in rm_needed.items():
@@ -184,6 +193,7 @@ def compute_sourcing_plan(
         order_date = demand_date - timedelta(days=lt_days)
         days_left  = (order_date - today).days
 
+        est_cost = info["estimated_cost_eur"] or None
         materials.append(SourcingMaterial(
             raw_material_code=rm_code,
             raw_material_name=info["name"],
@@ -194,6 +204,7 @@ def compute_sourcing_plan(
             days_until_order=days_left,
             status=_status(days_left),
             finished_goods=sorted(info["finished_goods"]),
+            estimated_cost_eur=round(est_cost, 2) if est_cost else None,
         ))
 
     # Sort by urgency (overdue first, then by order_by_date)

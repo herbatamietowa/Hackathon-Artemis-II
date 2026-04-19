@@ -316,8 +316,10 @@ def simulate_project(req: ProjectSimulationRequest) -> ProjectSimulationResponse
 def list_raw_materials() -> RawMaterialListResponse:
     """Return component (raw) materials from BOM with current stock totals."""
     try:
+        from collections import defaultdict
         df32 = pd.read_excel(DATA_PATH, sheet_name="3_2 Component_SF_RM")
         df31 = pd.read_excel(DATA_PATH, sheet_name="3_1 Inventory ATP")
+        df23 = pd.read_excel(DATA_PATH, sheet_name="2_3 SAP MasterData")
 
         rm_df = (
             df32[["Component Material code", "Component Description", "Component BUoM"]]
@@ -339,12 +341,27 @@ def list_raw_materials() -> RawMaterialListResponse:
         if stock_col and "Stock Qty" in df31.columns:
             stock_map = df31.groupby(stock_col)["Stock Qty"].sum().to_dict()
 
+        # Derive RM unit cost: fg_standard_cost / effective_qty_per_pc, averaged across all FG mappings
+        cost_map: dict = {}
+        if "Sap code" in df23.columns and "Standard Cost in EUR" in df23.columns:
+            cost_map = df23.dropna(subset=["Standard Cost in EUR"]).set_index("Sap code")["Standard Cost in EUR"].to_dict()
+
+        rm_costs: dict = defaultdict(list)
+        for _, bom_row in df32.iterrows():
+            rm_code = str(bom_row.get("Component Material code", "")).strip()
+            fg_code = str(bom_row.get("Header Material code", "")).strip()
+            eff_qty = float(bom_row.get("Effective Component Quantity", 0) or 0)
+            fg_cost = cost_map.get(fg_code, 0.0)
+            if rm_code and eff_qty > 0 and fg_cost > 0:
+                rm_costs[rm_code].append(fg_cost / eff_qty)
+
         materials = [
             RawMaterialItem(
                 code=row["code"],
                 name=row["name"],
                 unit=row["unit"],
                 stock_qty=float(stock_map.get(row["code"], 0.0)),
+                unit_cost_eur=round(sum(rm_costs[row["code"]]) / len(rm_costs[row["code"]]), 4) if rm_costs[row["code"]] else None,
             )
             for _, row in rm_df.sort_values("code").iterrows()
         ]

@@ -52,6 +52,7 @@ export interface SourcingMaterial {
   days_until_order: number;
   status: 'on_track' | 'order_soon' | 'urgent' | 'overdue';
   finished_goods: string[];
+  estimated_cost_eur?: number | null;
 }
 
 export interface SourcingResponse {
@@ -255,6 +256,7 @@ export interface ProjectSimulationRequest {
 }
 
 export interface RawMaterialItem {
+  unit_cost_eur?: number | null;
   code: string;
   name: string;
   unit: string;

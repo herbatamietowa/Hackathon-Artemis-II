@@ -144,6 +144,7 @@ class SourcingMaterial(BaseModel):
     days_until_order: int        # negative = already overdue
     status: str                  # "on_track" | "order_soon" | "urgent" | "overdue"
     finished_goods: list[str]    # FG material codes that drive this RM demand
+    estimated_cost_eur: float | None = None  # derived from FG standard cost (2_3 SAP MasterData)
 
 
 class SourcingResponse(BaseModel):
@@ -363,6 +364,7 @@ class RawMaterialItem(BaseModel):
     name: str
     unit: str
     stock_qty: float
+    unit_cost_eur: float | None = None  # derived from FG standard cost ÷ BOM effective qty
 
 
 class RawMaterialListResponse(BaseModel):

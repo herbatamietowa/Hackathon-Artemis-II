@@ -138,8 +138,8 @@
   "hotPaths": [
     {
       "path": "frontend\\src\\App.tsx",
-      "accessCount": 25,
-      "lastAccessed": 1776549741740,
+      "accessCount": 32,
+      "lastAccessed": 1776562659034,
       "type": "file"
     },
     {
@@ -149,9 +149,33 @@
       "type": "file"
     },
     {
+      "path": "frontend\\src\\components\\SourcingPanel.tsx",
+      "accessCount": 16,
+      "lastAccessed": 1776562656348,
+      "type": "file"
+    },
+    {
+      "path": "frontend\\src\\components\\ProjectArchitect.tsx",
+      "accessCount": 14,
+      "lastAccessed": 1776562646913,
+      "type": "file"
+    },
+    {
       "path": "backend\\app\\api\\routes.py",
-      "accessCount": 10,
-      "lastAccessed": 1776549019516,
+      "accessCount": 12,
+      "lastAccessed": 1776563311508,
+      "type": "file"
+    },
+    {
+      "path": "backend\\app\\api\\schemas.py",
+      "accessCount": 11,
+      "lastAccessed": 1776563287174,
+      "type": "file"
+    },
+    {
+      "path": "frontend\\src\\types.ts",
+      "accessCount": 11,
+      "lastAccessed": 1776563327395,
       "type": "file"
     },
     {
@@ -161,27 +185,9 @@
       "type": "file"
     },
     {
-      "path": "frontend\\src\\components\\SourcingPanel.tsx",
-      "accessCount": 9,
-      "lastAccessed": 1776548121872,
-      "type": "file"
-    },
-    {
-      "path": "frontend\\src\\components\\ProjectArchitect.tsx",
-      "accessCount": 7,
-      "lastAccessed": 1776548114366,
-      "type": "file"
-    },
-    {
-      "path": "backend\\app\\api\\schemas.py",
-      "accessCount": 7,
-      "lastAccessed": 1776549128634,
-      "type": "file"
-    },
-    {
-      "path": "frontend\\src\\types.ts",
-      "accessCount": 6,
-      "lastAccessed": 1776549137612,
+      "path": "backend\\app\\engine\\sourcing.py",
+      "accessCount": 5,
+      "lastAccessed": 1776562038759,
       "type": "file"
     },
     {

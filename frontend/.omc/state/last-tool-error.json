@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"cd \\\"c:\\\\Users\\\\Olga\\\\Documents\\\\uni\\\\semester4\\\\hackathon\\\\Hackathon-Artemis-II\\\" && python -c \\\"\\nfrom backend.app.engine.sourcing import compute_sourcing_plan\\nresult = compute_sourcing...",
+  "error": "Exit code 1\nTraceback (most recent call last):\r\n  File \"<string>\", line 3, in <module>\r\n    result = compute_sourcing_plan('NW01', 'base')\r\n  File \"C:\\Users\\Olga\\Documents\\uni\\semester4\\hackathon\\Hackathon-Artemis-II\\backend\\app\\engine\\sourcing.py\", line 98, in compute_sourcing_plan\r\n    demand_df = apply_scenario(demand_df, scenario)\r\n  File \"C:\\Users\\Olga\\Documents\\uni\\semester4\\hackathon\\Hackathon-Artemis-II\\backend\\app\\engine\\scenarios.py\", line 39, in apply_scenario\r\n    multiplier_fn = get...",
+  "timestamp": "2026-04-19T01:30:31.657Z",
+  "retry_count": 1
+}
