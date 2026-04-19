@@ -144,8 +144,14 @@
     },
     {
       "path": "frontend\\src\\components\\ProjectSimulator.tsx",
-      "accessCount": 25,
-      "lastAccessed": 1776564119467,
+      "accessCount": 33,
+      "lastAccessed": 1776566338010,
+      "type": "file"
+    },
+    {
+      "path": "backend\\app\\api\\routes.py",
+      "accessCount": 22,
+      "lastAccessed": 1776566241391,
       "type": "file"
     },
     {
@@ -155,39 +161,33 @@
       "type": "file"
     },
     {
+      "path": "backend\\app\\api\\schemas.py",
+      "accessCount": 16,
+      "lastAccessed": 1776566191137,
+      "type": "file"
+    },
+    {
+      "path": "frontend\\src\\types.ts",
+      "accessCount": 15,
+      "lastAccessed": 1776566225469,
+      "type": "file"
+    },
+    {
       "path": "frontend\\src\\components\\ProjectArchitect.tsx",
       "accessCount": 14,
       "lastAccessed": 1776562646913,
       "type": "file"
     },
     {
-      "path": "backend\\app\\api\\routes.py",
+      "path": "frontend\\src\\api\\client.ts",
       "accessCount": 14,
-      "lastAccessed": 1776564345078,
+      "lastAccessed": 1776566194887,
       "type": "file"
     },
     {
       "path": "backend\\app\\engine\\project_simulation.py",
       "accessCount": 12,
       "lastAccessed": 1776564845825,
-      "type": "file"
-    },
-    {
-      "path": "backend\\app\\api\\schemas.py",
-      "accessCount": 11,
-      "lastAccessed": 1776563287174,
-      "type": "file"
-    },
-    {
-      "path": "frontend\\src\\types.ts",
-      "accessCount": 11,
-      "lastAccessed": 1776563327395,
-      "type": "file"
-    },
-    {
-      "path": "frontend\\src\\api\\client.ts",
-      "accessCount": 11,
-      "lastAccessed": 1776564353744,
       "type": "file"
     },
     {
@@ -203,6 +203,12 @@
       "type": "file"
     },
     {
+      "path": "backend\\app\\agents\\agent1_capacity.py",
+      "accessCount": 4,
+      "lastAccessed": 1776566187072,
+      "type": "file"
+    },
+    {
       "path": "frontend\\src\\components\\ScenarioSelector.tsx",
       "accessCount": 3,
       "lastAccessed": 1776544594859,
@@ -212,6 +218,12 @@
       "path": "frontend\\src\\components\\DisasterPanel.tsx",
       "accessCount": 3,
       "lastAccessed": 1776544864756,
+      "type": "file"
+    },
+    {
+      "path": "backend\\app\\agents\\agent2_sustainability.py",
+      "accessCount": 3,
+      "lastAccessed": 1776566148270,
       "type": "file"
     },
     {

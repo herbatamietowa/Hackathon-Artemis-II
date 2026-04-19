@@ -8,10 +8,13 @@ import pandas as pd
 from fastapi import APIRouter, HTTPException
 
 from .schemas import (
+    AgentTurn,
     AnalyzeRequest,
     AnalyzeResponse,
     ApproveProjectRequest,
     ConfirmProjectRequest,
+    DebateProjectPathRequest,
+    DebateProjectPathResponse,
     DisasterRequest,
     DisasterResult,
     FactoryListResponse,
@@ -83,8 +86,24 @@ def analyze(req: AnalyzeRequest) -> AnalyzeResponse:
         from ..agents.agent2_sustainability import run_agent2
 
         engine_result = compute_capacity_plan(req.factory, req.scenario, period, DATA_PATH)
-        agent1_result = run_agent1(engine_result)
-        agent2_verdict = run_agent2(agent1_result)
+
+        debate_history: list[AgentTurn] = []
+        if req.user_argument:
+            debate_history.append(AgentTurn(agent_name="User", message=req.user_argument))
+
+        agent1_result = run_agent1(engine_result, debate_context=[t.model_dump() for t in debate_history] if debate_history else None)
+        debate_history.append(AgentTurn(agent_name="Cost Specialist", message=agent1_result.reasoning))
+
+        agent2_verdict = run_agent2(agent1_result, debate_context=[t.model_dump() for t in debate_history])
+        debate_history.append(AgentTurn(agent_name="Sustainability Director", message=agent2_verdict.strategy, verdict=agent2_verdict.verdict))
+
+        if agent2_verdict.verdict == "REOPEN DEBATE":
+            agent1_result = run_agent1(engine_result, debate_context=[t.model_dump() for t in debate_history])
+            debate_history.append(AgentTurn(agent_name="Cost Specialist", message=agent1_result.reasoning))
+            agent2_verdict = run_agent2(agent1_result, debate_context=[t.model_dump() for t in debate_history])
+            debate_history.append(AgentTurn(agent_name="Sustainability Director", message=agent2_verdict.strategy, verdict=agent2_verdict.verdict))
+
+        status = "USER_OVERRIDE" if req.user_argument else ("CONSENSUS" if agent2_verdict.verdict == "APPROVED" else "CONTESTED")
 
         # Reallocation suggestion — only when bottleneck and factory is not already NW03
         reallocation: ReallocationSuggestion | None = None
@@ -105,6 +124,8 @@ def analyze(req: AnalyzeRequest) -> AnalyzeResponse:
                 )
                 for wc in engine_result.per_work_center
             ],
+            debate_history=debate_history,
+            status=status,
             reallocation=reallocation,
         )
     except Exception as exc:
@@ -408,6 +429,45 @@ def order_raw_material(req: RawMaterialOrderRequest) -> dict:
     except Exception as exc:
         logger.warning("Could not write raw material order: %s", exc)
     return {"status": "ordered", "order_id": order_id}
+
+
+@router.post("/debate-project-path", response_model=DebateProjectPathResponse)
+def debate_project_path(req: DebateProjectPathRequest) -> DebateProjectPathResponse:
+    try:
+        from ..engine.project_simulation import compute_project_simulation
+        from ..agents.path_debate import run_path_debate
+
+        result = compute_project_simulation(
+            plate_code=req.plate_code,
+            quantity=req.quantity,
+            data_path=DATA_PATH,
+        )
+
+        if not result.paths:
+            raise HTTPException(status_code=400, detail="No feasible paths found for this material.")
+
+        paths_dicts = [vars(p) for p in result.paths]
+        debate = run_path_debate(
+            paths=paths_dicts,
+            plate_code=result.plate_code,
+            plate_name=result.plate_name,
+            user_argument=req.user_argument,
+        )
+
+        return DebateProjectPathResponse(
+            agreed_path=SimulationPathModel(**debate["agreed_path"]),
+            debate_history=[AgentTurn(**t) for t in debate["debate_history"]],
+            status=debate["status"],
+            parameters_considered=debate["parameters_considered"],
+            tradeoffs=debate.get("tradeoffs", []),
+            plate_code=result.plate_code,
+            plate_name=result.plate_name,
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("debate-project-path error: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc))
 
 
 @router.post("/approve-project")

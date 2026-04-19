@@ -60,6 +60,7 @@ class AnalyzeRequest(BaseModel):
     factory: str
     scenario: str
     period: Optional[str] = None  # "2026-05"; defaults to next month if omitted
+    user_argument: Optional[str] = None
 
 
 class WCLoadModel(BaseModel):
@@ -87,10 +88,17 @@ class Agent1Result(BaseModel):
 
 
 class Agent2Verdict(BaseModel):
-    verdict: str                          # "APPROVED" | "CORRECTED"
+    verdict: str                          # "APPROVED" | "REOPEN DEBATE"
     strategy: str
     sustainability_recommendation: str
+    challenge_summary: Optional[str] = None
     fallback: bool = False
+
+
+class AgentTurn(BaseModel):
+    agent_name: str  # "Cost Specialist" | "Sustainability Director" | "User"
+    message: str
+    verdict: Optional[str] = None
 
 
 class ReallocationSuggestion(BaseModel):
@@ -113,6 +121,8 @@ class AnalyzeResponse(BaseModel):
     agent1_result: Agent1Result
     agent2_verdict: Agent2Verdict
     per_work_center: list[WCLoadModel]
+    debate_history: list[AgentTurn] = []
+    status: str = "CONSENSUS"   # "CONSENSUS" | "CONTESTED" | "USER_OVERRIDE"
     reallocation: Optional[ReallocationSuggestion] = None
 
 
@@ -358,6 +368,22 @@ class ApproveProjectRequest(BaseModel):
 # ---------------------------------------------------------------------------
 # Raw material ordering schemas
 # ---------------------------------------------------------------------------
+
+class DebateProjectPathRequest(BaseModel):
+    plate_code: str
+    quantity: int = 1
+    user_argument: Optional[str] = None
+
+
+class DebateProjectPathResponse(BaseModel):
+    agreed_path: Optional[SimulationPathModel] = None
+    debate_history: list[AgentTurn] = []
+    status: str = "CONSENSUS"
+    parameters_considered: list[str] = []
+    tradeoffs: list[str] = []
+    plate_code: str
+    plate_name: str
+
 
 class RawMaterialItem(BaseModel):
     code: str

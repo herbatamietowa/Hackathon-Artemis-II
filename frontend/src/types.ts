@@ -23,16 +23,25 @@ export interface Agent1Result {
 }
 
 export interface Agent2Verdict {
-  verdict: 'APPROVED' | 'CORRECTED';
+  verdict: 'APPROVED' | 'REOPEN DEBATE';
   strategy: string;
   sustainability_recommendation: string;
+  challenge_summary?: string;
   fallback: boolean;
+}
+
+export interface AgentTurn {
+  agent_name: string;
+  message: string;
+  verdict?: string;
 }
 
 export interface AnalyzeResponse {
   agent1_result: Agent1Result;
   agent2_verdict: Agent2Verdict;
   per_work_center: WCLoad[];
+  debate_history: AgentTurn[];
+  status: 'CONSENSUS' | 'CONTESTED' | 'USER_OVERRIDE';
   reallocation?: ReallocationSuggestion;
 }
 
@@ -40,6 +49,7 @@ export interface AnalyzeRequest {
   factory: string;
   scenario: string;
   period?: string;
+  user_argument?: string;
 }
 
 export interface SourcingMaterial {
@@ -283,4 +293,20 @@ export interface ApproveProjectRequest {
   total_cost_eur: number;
   delivery_days: number;
   carbon_score: number;
+}
+
+export interface DebateProjectPathRequest {
+  plate_code: string;
+  quantity: number;
+  user_argument?: string;
+}
+
+export interface DebateProjectPathResponse {
+  agreed_path: SimulationPath | null;
+  debate_history: AgentTurn[];
+  status: 'CONSENSUS' | 'CONTESTED' | 'USER_OVERRIDE';
+  parameters_considered: string[];
+  tradeoffs: string[];
+  plate_code: string;
+  plate_name: string;
 }

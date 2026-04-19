@@ -66,13 +66,15 @@ def _deterministic_verdict(agent1: Agent1Result) -> Agent2Verdict:
     )
 
 
-def run_agent2(agent1: Agent1Result) -> Agent2Verdict:
+def run_agent2(agent1: Agent1Result, debate_context: list[dict] | None = None) -> Agent2Verdict:
     """Run Agent 2 via Gemini. Returns Agent2Verdict (fallback=True if unavailable)."""
     if not GEMINI_API_KEY:
         return _deterministic_verdict(agent1)
 
     client = openai.OpenAI(api_key=GEMINI_API_KEY, base_url=GEMINI_BASE_URL)
     user_content = json.dumps(agent1.model_dump())
+    if debate_context:
+        user_content += f"\n\nDebate Context:\n{json.dumps(debate_context)}"
 
     for attempt, model in enumerate([AGENT2_MODEL, AGENT2_FALLBACK_MODEL]):
         try:
@@ -90,6 +92,7 @@ def run_agent2(agent1: Agent1Result) -> Agent2Verdict:
                 verdict=data["verdict"],
                 strategy=data["strategy"],
                 sustainability_recommendation=data["sustainability_recommendation"],
+                challenge_summary=data.get("challenge_summary"),
                 fallback=False,
             )
         except json.JSONDecodeError as exc:
