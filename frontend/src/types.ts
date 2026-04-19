@@ -282,6 +282,7 @@ export interface DebateProjectPathResponse {
   debate_history: AgentTurn[];
   status: 'CONSENSUS' | 'CONTESTED' | 'USER_OVERRIDE';
   parameters_considered: string[];
+  tradeoffs: string[];
   plate_code: string;
   plate_name: string;
 }

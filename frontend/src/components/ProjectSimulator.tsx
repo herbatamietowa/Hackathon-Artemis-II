@@ -814,6 +814,19 @@ function DebateSummaryPanel({ debate, showFull, onToggleFull }: {
           })}
         </div>
       )}
+      {debate.tradeoffs && debate.tradeoffs.length > 0 && (
+        <div style={{ marginTop: 10, paddingTop: 8, borderTop: '1px solid #ddd6fe' }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#6d28d9', marginBottom: 5 }}>⚖️ Trade-offs made</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            {debate.tradeoffs.map((t, i) => (
+              <div key={i} style={{ fontSize: 12, color: '#374151', display: 'flex', gap: 6 }}>
+                <span style={{ color: '#7c3aed', flexShrink: 0 }}>→</span>
+                <span>{t}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       <div style={{ marginTop: 10, paddingTop: 8, borderTop: '1px solid #ddd6fe', fontSize: 11, color: '#7c3aed', fontStyle: 'italic' }}>
         💡 Missing a constraint? Add it in the input below and reopen the debate.
       </div>

@@ -438,16 +438,12 @@ def debate_project_path(req: DebateProjectPathRequest) -> DebateProjectPathRespo
             user_argument=req.user_argument,
         )
 
-        agreed = next(
-            (p for p in result.paths if p.name == debate["agreed_path_name"]),
-            result.paths[0],
-        )
-
         return DebateProjectPathResponse(
-            agreed_path=SimulationPathModel(**vars(agreed)),
+            agreed_path=SimulationPathModel(**debate["agreed_path"]),
             debate_history=[AgentTurn(**t) for t in debate["debate_history"]],
             status=debate["status"],
             parameters_considered=debate["parameters_considered"],
+            tradeoffs=debate.get("tradeoffs", []),
             plate_code=result.plate_code,
             plate_name=result.plate_name,
         )

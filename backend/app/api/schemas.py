@@ -377,6 +377,7 @@ class DebateProjectPathResponse(BaseModel):
     debate_history: list[AgentTurn] = []
     status: str = "CONSENSUS"
     parameters_considered: list[str] = []
+    tradeoffs: list[str] = []
     plate_code: str
     plate_name: str
 
