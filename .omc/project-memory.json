@@ -137,15 +137,15 @@
   },
   "hotPaths": [
     {
-      "path": "frontend\\src\\App.tsx",
-      "accessCount": 43,
-      "lastAccessed": 1776581461915,
+      "path": "backend\\app\\api\\routes.py",
+      "accessCount": 49,
+      "lastAccessed": 1776584249114,
       "type": "file"
     },
     {
-      "path": "backend\\app\\api\\routes.py",
+      "path": "frontend\\src\\App.tsx",
       "accessCount": 43,
-      "lastAccessed": 1776583313827,
+      "lastAccessed": 1776581461915,
       "type": "file"
     },
     {
@@ -185,21 +185,27 @@
       "type": "file"
     },
     {
+      "path": "backend\\app\\engine\\project_simulation.py",
+      "accessCount": 15,
+      "lastAccessed": 1776584263039,
+      "type": "file"
+    },
+    {
       "path": "backend\\app\\engine\\sourcing.py",
       "accessCount": 13,
       "lastAccessed": 1776567217673,
       "type": "file"
     },
     {
-      "path": "backend\\app\\engine\\project_simulation.py",
-      "accessCount": 12,
-      "lastAccessed": 1776564845825,
-      "type": "file"
-    },
-    {
       "path": "solution.md",
       "accessCount": 5,
       "lastAccessed": 1776565416446,
+      "type": "file"
+    },
+    {
+      "path": "backend\\app\\engine\\reallocation.py",
+      "accessCount": 5,
+      "lastAccessed": 1776584275666,
       "type": "file"
     },
     {
@@ -213,6 +219,12 @@
       "accessCount": 4,
       "lastAccessed": 1776582154602,
       "type": "directory"
+    },
+    {
+      "path": "backend\\app\\data\\loader.py",
+      "accessCount": 4,
+      "lastAccessed": 1776584184246,
+      "type": "file"
     },
     {
       "path": "frontend\\src\\components\\ScenarioSelector.tsx",
@@ -239,9 +251,15 @@
       "type": "file"
     },
     {
-      "path": "backend\\app\\data\\loader.py",
+      "path": "backend",
       "accessCount": 3,
-      "lastAccessed": 1776582157811,
+      "lastAccessed": 1776584184015,
+      "type": "directory"
+    },
+    {
+      "path": "backend\\app\\engine\\gci.py",
+      "accessCount": 3,
+      "lastAccessed": 1776584238041,
       "type": "file"
     },
     {
@@ -263,9 +281,9 @@
       "type": "file"
     },
     {
-      "path": "backend\\app\\engine\\gci.py",
-      "accessCount": 1,
-      "lastAccessed": 1776535628039,
+      "path": "backend\\app\\engine\\disaster.py",
+      "accessCount": 2,
+      "lastAccessed": 1776584235265,
       "type": "file"
     },
     {
@@ -332,6 +350,12 @@
       "path": "frontend\\src\\components\\DataUploadPanel.tsx",
       "accessCount": 1,
       "lastAccessed": 1776581424366,
+      "type": "file"
+    },
+    {
+      "path": "backend\\app\\main.py",
+      "accessCount": 1,
+      "lastAccessed": 1776584203750,
       "type": "file"
     }
   ],

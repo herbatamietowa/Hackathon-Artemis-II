@@ -45,11 +45,11 @@ def check_nw03_headroom(
     from .capacity import _build_capacity_for_factory
 
     data_path = Path(data_path)
+    wb = load_workbook(data_path)
+    sheets = {k.strip(): v for k, v in wb.items()}
 
     # ── 1. Capacity headroom ──────────────────────────────────────────────────
     try:
-        wb = load_workbook(data_path)
-        sheets = {k.strip(): v for k, v in wb.items()}
 
         cal_key = next((k for k in sheets if "2_4" in k), None)
         cap_key = next((k for k in sheets if "2_1" in k), None)
@@ -70,7 +70,7 @@ def check_nw03_headroom(
 
     # ── 2. Material compatibility (tooling overlap from 2_6) ─────────────────
     try:
-        df26 = pd.read_excel(data_path, sheet_name="2_6 Tool_material nr master")
+        df26 = sheets.get("2_6 Tool_material nr master", pd.DataFrame())
         active = df26[df26["Material Status"] == "Active"]
         src_mats  = set(active[active["Plant"] == source_factory]["Sap code"].dropna())
         nw03_mats = set(active[active["Plant"] == REALLOCATION_TARGET]["Sap code"].dropna())
@@ -84,7 +84,7 @@ def check_nw03_headroom(
 
     # ── 3. Cost delta & transport LT delta (from 2_3, compatible mats only) ──
     try:
-        df23 = pd.read_excel(data_path, sheet_name="2_3 SAP MasterData")
+        df23 = sheets.get("2_3 SAP MasterData", pd.DataFrame())
         src_costs  = df23[(df23["Sap code"].isin(compatible)) & (df23["G35 - Plant"] == source_factory)].set_index("Sap code")
         nw03_costs = df23[(df23["Sap code"].isin(compatible)) & (df23["G35 - Plant"] == REALLOCATION_TARGET)].set_index("Sap code")
         both = src_costs.index.intersection(nw03_costs.index)
@@ -105,7 +105,7 @@ def check_nw03_headroom(
 
     # ── 4. Carbon delta (grid intensity from plant names in 2_5) ─────────────
     try:
-        df25 = pd.read_excel(data_path, sheet_name="2_5 WC Schedule_limits")
+        df25 = sheets.get("2_5 WC Schedule_limits", pd.DataFrame())
         names = df25[["Plant", "Plant name"]].drop_duplicates("Plant").set_index("Plant")["Plant name"]
         src_intensity  = _grid_intensity(names.get(source_factory, ""))
         nw03_intensity = _grid_intensity(names.get(REALLOCATION_TARGET, ""))

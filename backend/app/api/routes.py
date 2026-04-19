@@ -40,6 +40,7 @@ from .schemas import (
     WCLoadModel,
 )
 from ..config import DATA_PATH, SCENARIOS
+from ..data.loader import load_workbook
 from ..engine.capacity import compute_capacity_plan
 
 logger = logging.getLogger(__name__)
@@ -60,7 +61,8 @@ def list_scenarios() -> ScenarioListResponse:
 @router.get("/factories", response_model=FactoryListResponse)
 def list_factories() -> FactoryListResponse:
     try:
-        df = pd.read_excel(DATA_PATH, sheet_name="2_1 Work Center Capacity Weekly", usecols=["Work center code"])
+        wb = load_workbook(DATA_PATH)
+        df = wb.get("2_1 Work Center Capacity Weekly", pd.DataFrame())
         codes = df["Work center code"].dropna().astype(str)
         factories = sorted({m.group(1) for wc in codes for m in [re.search(r"(NW\d+)", wc)] if m})
         if factories:
@@ -150,8 +152,9 @@ def sourcing(req: SourcingRequest) -> SourcingResponse:
 def list_materials() -> MaterialListResponse:
     """Return all active materials that have multi-plant tooling (GCI candidates)."""
     try:
-        df26 = pd.read_excel(DATA_PATH, sheet_name="2_6 Tool_material nr master")
-        df23 = pd.read_excel(DATA_PATH, sheet_name="2_3 SAP MasterData")
+        wb = load_workbook(DATA_PATH)
+        df26 = wb.get("2_6 Tool_material nr master", pd.DataFrame())
+        df23 = wb.get("2_3 SAP MasterData", pd.DataFrame())
         active = df26[df26["Material Status"] == "Active"]
         multi = active.groupby("Sap code")["Plant"].nunique()
         multi_codes = multi[multi > 1].index.tolist()
@@ -350,9 +353,10 @@ def list_raw_materials() -> RawMaterialListResponse:
     """Return component (raw) materials from BOM with current stock totals."""
     try:
         from collections import defaultdict
-        df32 = pd.read_excel(DATA_PATH, sheet_name="3_2 Component_SF_RM")
-        df31 = pd.read_excel(DATA_PATH, sheet_name="3_1 Inventory ATP")
-        df23 = pd.read_excel(DATA_PATH, sheet_name="2_3 SAP MasterData")
+        wb = load_workbook(DATA_PATH)
+        df32 = wb.get("3_2 Component_SF_RM", pd.DataFrame())
+        df31 = wb.get("3_1 Inventory ATP", pd.DataFrame())
+        df23 = wb.get("2_3 SAP MasterData", pd.DataFrame())
 
         rm_df = (
             df32[["Component Material code", "Component Description", "Component BUoM"]]
@@ -504,6 +508,7 @@ def approve_project(req: ApproveProjectRequest) -> dict:
 async def upload_data(file: UploadFile = File(...)) -> UploadDataResponse:
     """Merge an uploaded .xlsx into the main dataset and invalidate the cache."""
     import io
+    import openpyxl
     from ..data.loader import SHEET_NAMES, invalidate_cache
 
     contents = await file.read()
@@ -513,41 +518,43 @@ async def upload_data(file: UploadFile = File(...)) -> UploadDataResponse:
         raise HTTPException(status_code=400, detail=f"Cannot read uploaded file: {exc}")
 
     uploaded_norm = {k.strip(): v for k, v in uploaded.items()}
-
-    # Load current workbook (bypass lru_cache so we get current state from disk)
-    try:
-        current = pd.read_excel(DATA_PATH, sheet_name=None, engine="openpyxl")
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Cannot read dataset: {exc}")
-    current_norm = {k.strip(): v for k, v in current.items()}
-
     known = {s.strip() for s in SHEET_NAMES}
-    rows_added: dict[str, int] = {}
-    merged: dict[str, pd.DataFrame] = {}
 
+    # Match uploaded sheets to known sheets by exact name or 3-char prefix
+    matches: dict[str, pd.DataFrame] = {}
     for up_name, up_df in uploaded_norm.items():
-        # Match uploaded sheet to a known sheet (exact or leading 3-char prefix)
-        target = next(
-            (k for k in known if up_name == k or up_name[:3] == k[:3]),
-            None,
-        )
-        if target is None:
-            continue
-        existing = current_norm.get(target, pd.DataFrame())
-        combined = pd.concat([existing, up_df], ignore_index=True) if not existing.empty else up_df
-        merged[target] = combined
-        rows_added[target] = len(up_df)
+        target = next((k for k in known if up_name == k or up_name[:3] == k[:3]), None)
+        if target is not None:
+            matches[target] = up_df
 
-    if not merged:
+    if not matches:
         raise HTTPException(status_code=400, detail="No sheets matched known dataset sheets. Check your file.")
 
-    # Write all sheets back — try original path, fall back to /tmp if read-only
-    all_sheets = {**current_norm, **merged}
+    # Load the workbook with openpyxl and append rows directly — avoids full read/rewrite
+    try:
+        wb = openpyxl.load_workbook(DATA_PATH)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Cannot read dataset: {exc}")
+
+    rows_added: dict[str, int] = {}
+    for target, up_df in matches.items():
+        ws = next((wb[s] for s in wb.sheetnames if s.strip() == target), None)
+        if ws is None:
+            continue
+        headers = [cell.value for cell in ws[1]]
+        for _, row in up_df.iterrows():
+            new_row = []
+            for h in headers:
+                val = row.get(h) if h in up_df.columns else None
+                new_row.append(None if (val is None or (isinstance(val, float) and pd.isna(val))) else val)
+            ws.append(new_row)
+        rows_added[target] = len(up_df)
+
+    if not rows_added:
+        raise HTTPException(status_code=400, detail="Sheets matched but no rows could be appended.")
 
     try:
-        with pd.ExcelWriter(DATA_PATH, engine="openpyxl") as writer:
-            for sheet_name, df in all_sheets.items():
-                df.to_excel(writer, sheet_name=sheet_name[:31], index=False)
+        wb.save(DATA_PATH)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to save dataset: {exc}")
 
