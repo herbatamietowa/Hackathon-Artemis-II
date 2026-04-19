@@ -391,8 +391,8 @@ export function ProjectSimulator({ plates, gaskets }: { plates: MaterialOption[]
                   </div>
                 )}
 
-                {/* AI Debate section — plates only */}
-                {item.type === 'plate' && state.result.paths.length > 0 && (() => {
+                {/* AI Debate section */}
+                {state.result.paths.length > 0 && (() => {
                   const ds = debateStates[item.id];
                   return (
                     <div style={{ marginTop: 4 }}>

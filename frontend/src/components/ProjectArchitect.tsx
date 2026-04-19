@@ -152,10 +152,13 @@ export function ProjectArchitect({
           <div>
             <label style={lbl}>Required Delivery Date</label>
             <input
-              type="date" min={TODAY} value={deadline}
+              type="date" value={deadline}
               onChange={e => setDeadline(e.target.value)}
-              style={inp}
+              style={{ ...inp, borderColor: deadline && deadline < TODAY ? '#f97316' : undefined }}
             />
+            {deadline && deadline < TODAY && (
+              <div style={{ fontSize: 11, color: '#c2410c', marginTop: 3, fontWeight: 600 }}>⚠ Date is in the past</div>
+            )}
           </div>
 
           <button onClick={handleClear} style={clearBtn}>Clear</button>
@@ -223,30 +226,45 @@ export function ProjectArchitect({
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {orders.map((o, i) => (
-              <div key={o.order_id} style={{
-                background: '#f0fdf4', border: '1px solid #86efac',
-                borderRadius: 8, padding: '12px 16px',
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8,
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: '#15803d', background: '#dcfce7', borderRadius: 4, padding: '2px 8px' }}>
-                    ✓ #{i + 1}
-                  </span>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: 13, color: '#14532d' }}>{o.material_code}</div>
-                    <div style={{ fontSize: 11, color: '#166534' }}>{o.material_name}</div>
+            {orders.map((o, i) => {
+              const isOverdue = !!o.deadline && o.deadline < TODAY;
+              return (
+                <div key={o.order_id} style={{
+                  background: isOverdue ? '#fff7ed' : '#f0fdf4',
+                  border: `1px solid ${isOverdue ? '#fed7aa' : '#86efac'}`,
+                  borderRadius: 8, padding: '12px 16px',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8,
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{
+                      fontSize: 11, fontWeight: 700, borderRadius: 4, padding: '2px 8px',
+                      color: isOverdue ? '#c2410c' : '#15803d',
+                      background: isOverdue ? '#ffedd5' : '#dcfce7',
+                    }}>
+                      {isOverdue ? '⚠ OVERDUE' : `✓ #${i + 1}`}
+                    </span>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 13, color: isOverdue ? '#7c2d12' : '#14532d' }}>{o.material_code}</div>
+                      <div style={{ fontSize: 11, color: isOverdue ? '#9a3412' : '#166534' }}>{o.material_name}</div>
+                    </div>
                   </div>
+                  <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+                    <OStat label="Qty" value={`${o.qty.toLocaleString('en-US', { maximumFractionDigits: 3 })} ${o.unit}`} overdue={isOverdue} />
+                    <OStat label="Factory" value={o.factory} overdue={isOverdue} />
+                    {o.deadline && (
+                      <OStat
+                        label="Deliver by"
+                        value={new Date(o.deadline + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' })}
+                        overdue={isOverdue}
+                        highlight={isOverdue}
+                      />
+                    )}
+                    <OStat label="Ref" value={o.order_id} mono overdue={isOverdue} />
+                  </div>
+                  <div style={{ fontSize: 10, color: '#94a3b8', alignSelf: 'flex-end' }}>{o.ordered_at}</div>
                 </div>
-                <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-                  <OStat label="Qty" value={`${o.qty.toLocaleString('en-US', { maximumFractionDigits: 3 })} ${o.unit}`} />
-                  <OStat label="Factory" value={o.factory} />
-                  {o.deadline && <OStat label="Deliver by" value={new Date(o.deadline + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' })} />}
-                  <OStat label="Ref" value={o.order_id} mono />
-                </div>
-                <div style={{ fontSize: 10, color: '#94a3b8', alignSelf: 'flex-end' }}>{o.ordered_at}</div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -272,11 +290,11 @@ function StockChip({ label, value, color }: { label: string; value: string; colo
   );
 }
 
-function OStat({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+function OStat({ label, value, mono, overdue, highlight }: { label: string; value: string; mono?: boolean; overdue?: boolean; highlight?: boolean }) {
   return (
     <div style={{ textAlign: 'center' }}>
       <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase' }}>{label}</div>
-      <div style={{ fontSize: 13, fontWeight: 600, color: '#14532d', fontFamily: mono ? 'monospace' : 'inherit' }}>{value}</div>
+      <div style={{ fontSize: 13, fontWeight: 600, fontFamily: mono ? 'monospace' : 'inherit', color: highlight ? '#c2410c' : overdue ? '#7c2d12' : '#14532d' }}>{value}</div>
     </div>
   );
 }

@@ -86,6 +86,19 @@ def compute_sourcing_plan(
     if not sap_df.empty and "Sap code" in sap_df.columns and "Standard Cost in EUR" in sap_df.columns:
         cost_map = sap_df.dropna(subset=["Standard Cost in EUR"]).set_index("Sap code")["Standard Cost in EUR"].to_dict()
 
+    # Per-unit RM cost: same method as /raw-materials (avg fg_cost/eff_qty across all BOM rows)
+    rm_unit_cost_map: dict[str, float] = {}
+    if not bom_df.empty:
+        _rm_costs: dict[str, list] = defaultdict(list)
+        for _, _brow in bom_df.iterrows():
+            _rm = str(_brow.get("Component Material code", "")).strip()
+            _fg = str(_brow.get("Header Material code", "")).strip()
+            _qty = float(_brow.get("Effective Component Quantity", 0) or 0)
+            _cost = cost_map.get(_fg, 0.0)
+            if _rm and _qty > 0 and _cost > 0:
+                _rm_costs[_rm].append(_cost / _qty)
+        rm_unit_cost_map = {k: sum(v) / len(v) for k, v in _rm_costs.items()}
+
     demand_df, _ = build_demand_frame(plates_df, gaskets_df, projects_df, tool_master, factory)
 
     if demand_df.empty:
@@ -152,7 +165,6 @@ def compute_sourcing_plan(
         "unit": "KG",
         "name": "",
         "finished_goods": set(),
-        "estimated_cost_eur": 0.0,
     })
 
     demand_date = _parse_period(period)
@@ -183,9 +195,6 @@ def compute_sourcing_plan(
             rm_needed[rm_code]["unit"] = unit
             rm_needed[rm_code]["name"] = rm_name
             rm_needed[rm_code]["finished_goods"].add(mat_code)
-            fg_cost = cost_map.get(mat_code, 0.0)
-            if fg_cost > 0:
-                rm_needed[rm_code]["estimated_cost_eur"] += gap_pcs * fg_cost
 
     materials: list[SourcingMaterial] = []
     for rm_code, info in rm_needed.items():
@@ -193,7 +202,8 @@ def compute_sourcing_plan(
         order_date = demand_date - timedelta(days=lt_days)
         days_left  = (order_date - today).days
 
-        est_cost = info["estimated_cost_eur"] or None
+        unit_cost = rm_unit_cost_map.get(rm_code)
+        est_cost = round(info["total_needed"] * unit_cost, 2) if unit_cost else None
         materials.append(SourcingMaterial(
             raw_material_code=rm_code,
             raw_material_name=info["name"],
