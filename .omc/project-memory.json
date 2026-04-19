@@ -197,6 +197,12 @@
       "type": "file"
     },
     {
+      "path": "solution.md",
+      "accessCount": 5,
+      "lastAccessed": 1776565416446,
+      "type": "file"
+    },
+    {
       "path": "frontend\\src\\components\\ScenarioSelector.tsx",
       "accessCount": 3,
       "lastAccessed": 1776544594859,
