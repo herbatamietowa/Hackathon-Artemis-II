@@ -278,12 +278,23 @@ def confirm_project(req: ConfirmProjectRequest) -> dict:
 
 @router.get("/plates", response_model=MaterialListResponse)
 def list_plates() -> MaterialListResponse:
-    """Return all header materials from 3_2 (the plate IDs) with names."""
+    """Return plate materials from 1_1 Export Plates."""
     try:
         from ..engine.project_simulation import get_plate_list
         return MaterialListResponse(materials=get_plate_list(DATA_PATH))
     except Exception as exc:
         logger.warning("Could not load plates: %s", exc)
+        return MaterialListResponse(materials=[])
+
+
+@router.get("/gaskets", response_model=MaterialListResponse)
+def list_gaskets() -> MaterialListResponse:
+    """Return gasket materials from 1_2 Gaskets."""
+    try:
+        from ..engine.project_simulation import get_gasket_list
+        return MaterialListResponse(materials=get_gasket_list(DATA_PATH))
+    except Exception as exc:
+        logger.warning("Could not load gaskets: %s", exc)
         return MaterialListResponse(materials=[])
 
 

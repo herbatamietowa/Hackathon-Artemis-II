@@ -84,13 +84,39 @@ class ProjectSimulationResult:
 # Public helpers
 # ---------------------------------------------------------------------------
 
+def _material_list_from_sheet(df: pd.DataFrame, fallback_name_map: dict) -> list[dict]:
+    mat_col = next((c for c in df.columns if "material number" in str(c).lower()), None)
+    desc_col = next((c for c in df.columns if "material description" in str(c).lower()), None)
+    if mat_col is None:
+        return []
+    rows = df[[mat_col] + ([desc_col] if desc_col else [])].dropna(subset=[mat_col]).drop_duplicates(mat_col)
+    result = {}
+    for _, row in rows.iterrows():
+        code = str(row[mat_col]).strip()
+        if not code:
+            continue
+        name = str(row[desc_col]).strip() if desc_col and pd.notna(row[desc_col]) else fallback_name_map.get(code, code)
+        result[code] = name
+    return [{"code": c, "name": n} for c, n in sorted(result.items())]
+
+
 def get_plate_list(data_path: Path) -> list[dict]:
-    """Return unique header materials from 3_2 with names from 2_3."""
-    df32 = pd.read_excel(data_path, sheet_name="3_2 Component_SF_RM")
+    """Return plate materials from 1_1 Export Plates."""
+    df11 = pd.read_excel(data_path, sheet_name="1_1 Export Plates")
     df23 = pd.read_excel(data_path, sheet_name="2_3 SAP MasterData")
     name_map = df23.set_index("Sap code")["Description"].to_dict() if "Description" in df23.columns else {}
-    codes = sorted(str(c) for c in df32["Header Material code"].dropna().unique())
-    return [{"code": c, "name": str(name_map.get(c, c))} for c in codes]
+    return _material_list_from_sheet(df11, name_map)
+
+
+def get_gasket_list(data_path: Path) -> list[dict]:
+    """Return gasket materials from 1_2 Gaskets (only rows with GASKET in description)."""
+    df12 = pd.read_excel(data_path, sheet_name="1_2 Gaskets")
+    desc_col = next((c for c in df12.columns if "material description" in str(c).lower()), None)
+    if desc_col:
+        df12 = df12[df12[desc_col].str.contains("gasket", case=False, na=False)]
+    df23 = pd.read_excel(data_path, sheet_name="2_3 SAP MasterData")
+    name_map = df23.set_index("Sap code")["Description"].to_dict() if "Description" in df23.columns else {}
+    return _material_list_from_sheet(df12, name_map)
 
 
 # ---------------------------------------------------------------------------
@@ -165,8 +191,15 @@ def compute_project_simulation(
 
         raw_materials = raw_materials[:6]
 
-    # Earliest raw material lead time (days until stock available, or 14 default)
-    raw_mat_lt_days = 7 if raw_materials and all(rm.sufficient for rm in raw_materials) else 14
+    # Raw material lead time from BOM Production LT in Weeks (supplier → factory, includes transport)
+    if not rm_bom.empty and "Production LT in Weeks" in rm_bom.columns:
+        rm_lt_weeks = rm_bom["Production LT in Weeks"].max()
+        if raw_materials and all(rm.sufficient for rm in raw_materials):
+            raw_mat_lt_days = 3  # stock available, minimal internal handling
+        else:
+            raw_mat_lt_days = max(7, int(rm_lt_weeks * 7))
+    else:
+        raw_mat_lt_days = 7 if raw_materials and all(rm.sufficient for rm in raw_materials) else 14
 
     # ── Plant feasibility (2_6 active tooling for plate AND gasket) ───────────
     active26 = df26[df26["Material Status"] == "Active"] if "Material Status" in df26.columns else df26

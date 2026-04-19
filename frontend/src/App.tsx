@@ -63,8 +63,8 @@ export default function App() {
   useEffect(() => {
     api.factories().then(r => setFactories(r.factories)).catch(() => {});
     api.scenarios().then(r => setScenarios(r.scenarios)).catch(() => {});
-    api.materials().then(r => setGaskets(r.materials)).catch(() => {});
     api.plates().then(r => setPlates(r.materials)).catch(() => {});
+    api.gaskets().then(r => setGaskets(r.materials)).catch(() => {});
     api.rawMaterials().then(r => setRawMaterials(r.materials)).catch(() => {});
   }, []);
 

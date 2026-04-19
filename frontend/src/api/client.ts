@@ -33,6 +33,7 @@ export const api = {
   projectArchitect: (req: ProjectArchitectRequest) => post<ProjectArchitectResponse>('/project-architect', req),
   confirmProject: (req: ConfirmProjectRequest) => post<{ status: string }>('/confirm-project', req),
   plates: () => get<{ materials: MaterialOption[] }>('/plates'),
+  gaskets: () => get<{ materials: MaterialOption[] }>('/gaskets'),
   rawMaterials: () => get<{ materials: RawMaterialItem[] }>('/raw-materials'),
   orderRawMaterial: (req: RawMaterialOrderRequest) => post<{ status: string; order_id: string }>('/order-raw-material', req),
   simulateProject: (req: ProjectSimulationRequest) => post<ProjectSimulationResult>('/simulate-project', req),
