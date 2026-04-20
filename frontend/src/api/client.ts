@@ -1,4 +1,4 @@
-import type { AnalyzeRequest, AnalyzeResponse, ApproveProjectRequest, ConfirmProjectRequest, DebateProjectPathRequest, DebateProjectPathResponse, DisasterRequest, DisasterResult, GCIRequest, GCIResponse, MaterialOption, ProjectArchitectRequest, ProjectArchitectResponse, ProjectSimulationRequest, ProjectSimulationResult, RawMaterialItem, RawMaterialOrderRequest, SourcingRequest, SourcingResponse } from '../types';
+import type { AnalyzeRequest, AnalyzeResponse, ApproveProjectRequest, ConfirmProjectRequest, DebateProjectPathRequest, DebateProjectPathResponse, DisasterRequest, DisasterResult, GCIRequest, GCIResponse, MaterialOption, ProjectArchitectRequest, ProjectArchitectResponse, ProjectSimulationRequest, ProjectSimulationResult, RawMaterialItem, RawMaterialOrderRequest, SourcingRequest, SourcingResponse, UploadDataResponse } from '../types';
 
 const BASE = '/api';
 
@@ -39,4 +39,12 @@ export const api = {
   simulateProject: (req: ProjectSimulationRequest) => post<ProjectSimulationResult>('/simulate-project', req),
   approveProject: (req: ApproveProjectRequest) => post<{ status: string; record: Record<string, unknown> }>('/approve-project', req),
   debateProjectPath: (req: DebateProjectPathRequest) => post<DebateProjectPathResponse>('/debate-project-path', req),
+  uploadData: async (file: File): Promise<UploadDataResponse> => {
+    const form = new FormData();
+    form.append('file', file);
+    const res = await fetch(`${BASE}/upload-data`, { method: 'POST', body: form });
+    if (!res.ok) { const err = await res.text(); throw new Error(`Upload failed: ${res.status} — ${err}`); }
+    return res.json() as Promise<UploadDataResponse>;
+  },
+  downloadSampleFactory: () => fetch(`${BASE}/sample-factory-data`),
 };

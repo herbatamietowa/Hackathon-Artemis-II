@@ -51,9 +51,11 @@ def compute_disaster_impact(
         displaced_hours = 0.0
 
     # ── 2. Load reference data ────────────────────────────────────────────────
-    df26 = pd.read_excel(data_path, sheet_name="2_6 Tool_material nr master")
-    df25 = pd.read_excel(data_path, sheet_name="2_5 WC Schedule_limits")
-    df23 = pd.read_excel(data_path, sheet_name="2_3 SAP MasterData")
+    from ..data.loader import load_workbook
+    _wb = load_workbook(data_path)
+    df26 = _wb.get("2_6 Tool_material nr master", pd.DataFrame())
+    df25 = _wb.get("2_5 WC Schedule_limits", pd.DataFrame())
+    df23 = _wb.get("2_3 SAP MasterData", pd.DataFrame())
 
     plant_names = (
         df25[["Plant", "Plant name"]].drop_duplicates("Plant")

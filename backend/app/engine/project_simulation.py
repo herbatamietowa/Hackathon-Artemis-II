@@ -102,19 +102,23 @@ def _material_list_from_sheet(df: pd.DataFrame, fallback_name_map: dict) -> list
 
 def get_plate_list(data_path: Path) -> list[dict]:
     """Return plate materials from 1_1 Export Plates."""
-    df11 = pd.read_excel(data_path, sheet_name="1_1 Export Plates")
-    df23 = pd.read_excel(data_path, sheet_name="2_3 SAP MasterData")
+    from ..data.loader import load_workbook
+    _wb = load_workbook(data_path)
+    df11 = _wb.get("1_1 Export Plates", pd.DataFrame())
+    df23 = _wb.get("2_3 SAP MasterData", pd.DataFrame())
     name_map = df23.set_index("Sap code")["Description"].to_dict() if "Description" in df23.columns else {}
     return _material_list_from_sheet(df11, name_map)
 
 
 def get_gasket_list(data_path: Path) -> list[dict]:
     """Return gasket materials from 1_2 Gaskets (only rows with GASKET in description)."""
-    df12 = pd.read_excel(data_path, sheet_name="1_2 Gaskets")
+    from ..data.loader import load_workbook
+    _wb = load_workbook(data_path)
+    df12 = _wb.get("1_2 Gaskets", pd.DataFrame())
     desc_col = next((c for c in df12.columns if "material description" in str(c).lower()), None)
     if desc_col:
         df12 = df12[df12[desc_col].str.contains("gasket", case=False, na=False)]
-    df23 = pd.read_excel(data_path, sheet_name="2_3 SAP MasterData")
+    df23 = _wb.get("2_3 SAP MasterData", pd.DataFrame())
     name_map = df23.set_index("Sap code")["Description"].to_dict() if "Description" in df23.columns else {}
     return _material_list_from_sheet(df12, name_map)
 
@@ -128,15 +132,14 @@ def compute_project_simulation(
     quantity: int,
     data_path: Path,
 ) -> ProjectSimulationResult:
-    df32 = pd.read_excel(data_path, sheet_name="3_2 Component_SF_RM")
-    df26 = pd.read_excel(data_path, sheet_name="2_6 Tool_material nr master")
-    df23 = pd.read_excel(data_path, sheet_name="2_3 SAP MasterData")
-    df25 = pd.read_excel(data_path, sheet_name="2_5 WC Schedule_limits")
-    df21 = pd.read_excel(data_path, sheet_name="2_1 Work Center Capacity Weekly")
-    try:
-        df31 = pd.read_excel(data_path, sheet_name="3_1 Inventory ATP")
-    except Exception:
-        df31 = pd.DataFrame()
+    from ..data.loader import load_workbook
+    _wb = load_workbook(data_path)
+    df32 = _wb.get("3_2 Component_SF_RM", pd.DataFrame())
+    df26 = _wb.get("2_6 Tool_material nr master", pd.DataFrame())
+    df23 = _wb.get("2_3 SAP MasterData", pd.DataFrame())
+    df25 = _wb.get("2_5 WC Schedule_limits", pd.DataFrame())
+    df21 = _wb.get("2_1 Work Center Capacity Weekly", pd.DataFrame())
+    df31 = _wb.get("3_1 Inventory ATP", pd.DataFrame())
 
     name_map = df23.set_index("Sap code")["Description"].to_dict() if "Description" in df23.columns else {}
     plate_name = str(name_map.get(plate_code, plate_code))

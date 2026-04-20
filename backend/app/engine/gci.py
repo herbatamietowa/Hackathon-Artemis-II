@@ -119,10 +119,12 @@ def compute_gci(
     forced_mode: str | None = None,
 ) -> GCIResult:
     """Compute GCI scores for all plants that have active tooling for material_code."""
-    df23 = pd.read_excel(data_path, sheet_name="2_3 SAP MasterData")
-    df25 = pd.read_excel(data_path, sheet_name="2_5 WC Schedule_limits")
-    df26 = pd.read_excel(data_path, sheet_name="2_6 Tool_material nr master")
-    df32 = pd.read_excel(data_path, sheet_name="3_2 Component_SF_RM")
+    from ..data.loader import load_workbook
+    _wb = load_workbook(data_path)
+    df23 = _wb.get("2_3 SAP MasterData", pd.DataFrame())
+    df25 = _wb.get("2_5 WC Schedule_limits", pd.DataFrame())
+    df26 = _wb.get("2_6 Tool_material nr master", pd.DataFrame())
+    df32 = _wb.get("3_2 Component_SF_RM", pd.DataFrame())
 
     today = date.today()
     rdd: date | None = pd.to_datetime(rdd_str).date() if rdd_str else None

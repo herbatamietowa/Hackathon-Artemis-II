@@ -301,6 +301,11 @@ export interface DebateProjectPathRequest {
   user_argument?: string;
 }
 
+export interface UploadDataResponse {
+  sheets_merged: string[];
+  rows_added: Record<string, number>;
+}
+
 export interface DebateProjectPathResponse {
   agreed_path: SimulationPath | null;
   debate_history: AgentTurn[];
