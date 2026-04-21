@@ -78,8 +78,26 @@ def compute_sourcing_plan(
     gaskets_df  = _get("1_2")
     projects_df = _get("1_3")
     tool_master = _get("2_6")
+    sap_df      = _get("2_3")
     bom_df      = _get("3_2")
     inv_df      = _get("3_1")
+
+    cost_map: dict[str, float] = {}
+    if not sap_df.empty and "Sap code" in sap_df.columns and "Standard Cost in EUR" in sap_df.columns:
+        cost_map = sap_df.dropna(subset=["Standard Cost in EUR"]).set_index("Sap code")["Standard Cost in EUR"].to_dict()
+
+    # Per-unit RM cost: same method as /raw-materials (avg fg_cost/eff_qty across all BOM rows)
+    rm_unit_cost_map: dict[str, float] = {}
+    if not bom_df.empty:
+        _rm_costs: dict[str, list] = defaultdict(list)
+        for _, _brow in bom_df.iterrows():
+            _rm = str(_brow.get("Component Material code", "")).strip()
+            _fg = str(_brow.get("Header Material code", "")).strip()
+            _qty = float(_brow.get("Effective Component Quantity", 0) or 0)
+            _cost = cost_map.get(_fg, 0.0)
+            if _rm and _qty > 0 and _cost > 0:
+                _rm_costs[_rm].append(_cost / _qty)
+        rm_unit_cost_map = {k: sum(v) / len(v) for k, v in _rm_costs.items()}
 
     demand_df, _ = build_demand_frame(plates_df, gaskets_df, projects_df, tool_master, factory)
 
@@ -140,7 +158,7 @@ def compute_sourcing_plan(
     if bom_active.empty:
         bom_active = bom_factory
 
-    # Aggregate: raw_material_code → {total_kg, lead_time_days, finished_goods}
+    # Aggregate: raw_material_code → {total_kg, lead_time_days, finished_goods, estimated_cost_eur}
     rm_needed: dict[str, dict] = defaultdict(lambda: {
         "total_needed": 0.0,
         "lead_time_days": 0,
@@ -184,6 +202,8 @@ def compute_sourcing_plan(
         order_date = demand_date - timedelta(days=lt_days)
         days_left  = (order_date - today).days
 
+        unit_cost = rm_unit_cost_map.get(rm_code)
+        est_cost = round(info["total_needed"] * unit_cost, 2) if unit_cost else None
         materials.append(SourcingMaterial(
             raw_material_code=rm_code,
             raw_material_name=info["name"],
@@ -194,6 +214,7 @@ def compute_sourcing_plan(
             days_until_order=days_left,
             status=_status(days_left),
             finished_goods=sorted(info["finished_goods"]),
+            estimated_cost_eur=round(est_cost, 2) if est_cost else None,
         ))
 
     # Sort by urgency (overdue first, then by order_by_date)

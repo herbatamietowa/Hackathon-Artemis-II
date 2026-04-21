@@ -1,4 +1,4 @@
-import type { AnalyzeRequest, AnalyzeResponse, GCIRequest, GCIResponse, MaterialOption, SourcingRequest, SourcingResponse, TimelineResponse } from '../types';
+import type { AnalyzeRequest, AnalyzeResponse, ApproveProjectRequest, ConfirmProjectRequest, DebateProjectPathRequest, DebateProjectPathResponse, DisasterRequest, DisasterResult, GCIRequest, GCIResponse, MaterialOption, ProjectArchitectRequest, ProjectArchitectResponse, ProjectSimulationRequest, ProjectSimulationResult, RawMaterialItem, RawMaterialOrderRequest, SourcingRequest, SourcingResponse, UploadDataResponse, TimelineResponse } from '../types';
 
 const BASE = '/api';
 
@@ -30,5 +30,23 @@ export const api = {
   sourcing: (req: SourcingRequest) => post<SourcingResponse>('/sourcing', req),
   gci: (req: GCIRequest) => post<GCIResponse>('/gci', req),
   timeline: (factory: string, scenario: string, months = 36) =>
-    get<TimelineResponse>(`/timeline?factory=${encodeURIComponent(factory)}&scenario=${encodeURIComponent(scenario)}&months=${months}`),
+  get<TimelineResponse>(`/timeline?factory=${encodeURIComponent(factory)}&scenario=${encodeURIComponent(scenario)}&months=${months}`),
+  disaster: (req: DisasterRequest) => post<DisasterResult>('/disaster', req),
+  projectArchitect: (req: ProjectArchitectRequest) => post<ProjectArchitectResponse>('/project-architect', req),
+  confirmProject: (req: ConfirmProjectRequest) => post<{ status: string }>('/confirm-project', req),
+  plates: () => get<{ materials: MaterialOption[] }>('/plates'),
+  gaskets: () => get<{ materials: MaterialOption[] }>('/gaskets'),
+  rawMaterials: () => get<{ materials: RawMaterialItem[] }>('/raw-materials'),
+  orderRawMaterial: (req: RawMaterialOrderRequest) => post<{ status: string; order_id: string }>('/order-raw-material', req),
+  simulateProject: (req: ProjectSimulationRequest) => post<ProjectSimulationResult>('/simulate-project', req),
+  approveProject: (req: ApproveProjectRequest) => post<{ status: string; record: Record<string, unknown> }>('/approve-project', req),
+  debateProjectPath: (req: DebateProjectPathRequest) => post<DebateProjectPathResponse>('/debate-project-path', req),
+  uploadData: async (file: File): Promise<UploadDataResponse> => {
+    const form = new FormData();
+    form.append('file', file);
+    const res = await fetch(`${BASE}/upload-data`, { method: 'POST', body: form });
+    if (!res.ok) { const err = await res.text(); throw new Error(`Upload failed: ${res.status} — ${err}`); }
+    return res.json() as Promise<UploadDataResponse>;
+  },
+  downloadSampleFactory: () => fetch(`${BASE}/sample-factory-data`),
 };

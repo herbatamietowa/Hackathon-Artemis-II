@@ -1,18 +1,30 @@
 import { useEffect, useState } from 'react';
 import { api } from './api/client';
 import { Agent2Panel } from './components/Agent2Panel';
+import { DataUploadPanel } from './components/DataUploadPanel';
 import { BottleneckAlert } from './components/BottleneckAlert';
 import { CapacityChart } from './components/CapacityChart';
 import { DataQualityBadge } from './components/DataQualityBadge';
+import { DisasterPanel } from './components/DisasterPanel';
 import { FactorySelector } from './components/FactorySelector';
-import { GCIPanel } from './components/GCIPanel';
 import { LoadingState } from './components/LoadingState';
+import { ProjectArchitect } from './components/ProjectArchitect';
+import { ProjectSimulator } from './components/ProjectSimulator';
+import { ReallocationBanner } from './components/ReallocationBanner';
 import { ScenarioSelector } from './components/ScenarioSelector';
 import { SourcingPanel } from './components/SourcingPanel';
 import { TimelineChart } from './components/TimelineChart';
-import type { AnalyzeResponse, SourcingResponse, TimelinePoint } from './types';
+import type { AnalyzeResponse, MaterialOption, RawMaterialItem, SourcingResponse, TimelinePoint } from './types';
+// RawMaterialItem used in useState generic below
 
-type Tab = 'capacity' | 'sourcing' | 'gci';
+type Tab = 'project' | 'order' | 'pulse' | 'stream' | 'disaster' | 'import';
+
+const SCENARIO_LABELS: Record<string, string> = {
+  high_prob_only: 'Guaranteed Floor',
+  probability_weighted: 'Realistic Forecast',
+  '100_pct': 'Full Pipeline Stress-Test',
+};
+
 const PRINT_STYLES = `
 @media print {
   .no-print { display: none !important; }
@@ -26,13 +38,19 @@ const PRINT_STYLES = `
 }
 `;
 
-
 export default function App() {
   const [factories, setFactories] = useState<string[]>(['NW01']);
   const [scenarios, setScenarios] = useState<string[]>(['100_pct', 'probability_weighted', 'high_prob_only']);
+  const [plates, setPlates] = useState<MaterialOption[]>([]);
+  const [gaskets, setGaskets] = useState<MaterialOption[]>([]);
+  const [rawMaterials, setRawMaterials] = useState<RawMaterialItem[]>([]);
   const [factory, setFactory] = useState('NW01');
   const [scenario, setScenario] = useState('probability_weighted');
-  const [tab, setTab] = useState<Tab>('capacity');
+  const [tab, setTab] = useState<Tab>('project');
+  const [preselectedMaterial, setPreselectedMaterial] = useState<string | undefined>();
+  const [preselectedQty, setPreselectedQty] = useState<number | undefined>();
+  const [preselectedUnit, setPreselectedUnit] = useState<string | undefined>();
+  const [preselectedDeadline, setPreselectedDeadline] = useState<string | undefined>();
 
   const [loadingCapacity, setLoadingCapacity] = useState(false);
   const [loadingSourcing, setLoadingSourcing] = useState(false);
@@ -43,10 +61,16 @@ export default function App() {
   const [timelinePoints, setTimelinePoints] = useState<TimelinePoint[]>([]);
   const [loadingTimeline, setLoadingTimeline] = useState(false);
   const [timelineError, setTimelineError] = useState(false);
+  const [bottleneckCache, setBottleneckCache] = useState<Record<string, boolean>>({});
+  const [reallocationApplied, setReallocationApplied] = useState(false);
+  const [simulatedCapacityResult, setSimulatedCapacityResult] = useState<AnalyzeResponse | null>(null);
 
   useEffect(() => {
     api.factories().then(r => setFactories(r.factories)).catch(() => {});
     api.scenarios().then(r => setScenarios(r.scenarios)).catch(() => {});
+    api.plates().then(r => setPlates(r.materials)).catch(() => {});
+    api.gaskets().then(r => setGaskets(r.materials)).catch(() => {});
+    api.rawMaterials().then(r => setRawMaterials(r.materials)).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -59,42 +83,93 @@ export default function App() {
   }, [factory, scenario]);
 
   const run = async () => {
+  // Auto-run capacity analysis when Factory Pulse tab is active
+  useEffect(() => {
+    if (tab !== 'pulse') return;
+    let cancelled = false;
+    setLoadingCapacity(true);
     setError(null);
-    if (tab === 'capacity') {
-      setLoadingCapacity(true);
-      try {
-        const res = await api.analyze({ factory, scenario });
+    setReallocationApplied(false);
+    setSimulatedCapacityResult(null);
+    api.analyze({ factory, scenario })
+      .then(res => {
+        if (cancelled) return;
         setCapacityResult(res);
         setOffline(res.agent1_result.fallback && res.agent2_verdict.fallback);
-      } catch (e) { setError(String(e)); }
-      finally { setLoadingCapacity(false); }
-    } else {
-      setLoadingSourcing(true);
-      try {
-        const res = await api.sourcing({ factory, scenario });
-        setSourcingResult(res);
-      } catch (e) { setError(String(e)); }
-      finally { setLoadingSourcing(false); }
-    }
+        setBottleneckCache(prev => ({ ...prev, [factory]: res.agent1_result.bottleneck_detected }));
+      })
+      .catch(e => { if (!cancelled) setError(String(e)); })
+      .finally(() => { if (!cancelled) setLoadingCapacity(false); });
+    return () => { cancelled = true; };
+  }, [factory, scenario, tab]);
+
+  const handleApplyReallocation = () => {
+    if (!capacityResult) return;
+    const r = capacityResult.reallocation;
+    if (!r) return;
+    const bottleneckSet = new Set(capacityResult.agent1_result.bottleneck_work_centers);
+    const absorptionRatio = r.overflow_hours > 0 ? Math.min(1, r.available_headroom_hours / r.overflow_hours) : 1;
+    const newWC = capacityResult.per_work_center.map(wc => {
+      if (!bottleneckSet.has(wc.wc)) return wc;
+      const wcOverflow = Math.max(0, wc.demanded - wc.available * 0.9);
+      const newDemanded = wc.demanded - wcOverflow * absorptionRatio;
+      return { ...wc, demanded: newDemanded, utilization: newDemanded / wc.available };
+    });
+    const totalAvailable = newWC.reduce((s, w) => s + w.available, 0);
+    const totalDemanded = newWC.reduce((s, w) => s + w.demanded, 0);
+    const newBottleneckWCs = newWC.filter(w => w.utilization >= 0.9).map(w => w.wc);
+    const simulated: AnalyzeResponse = {
+      ...capacityResult,
+      per_work_center: newWC,
+      agent1_result: {
+        ...capacityResult.agent1_result,
+        capacity_utilization: totalAvailable > 0 ? totalDemanded / totalAvailable : 0,
+        bottleneck_detected: newBottleneckWCs.length > 0,
+        bottleneck_work_centers: newBottleneckWCs,
+        reasoning: newBottleneckWCs.length === 0
+          ? 'After reallocation to NW03, all work centers are within capacity.'
+          : `After partial reallocation, ${newBottleneckWCs.join(', ')} remain above threshold.`,
+      },
+    };
+    setSimulatedCapacityResult(simulated);
+    setReallocationApplied(true);
+    setBottleneckCache(prev => ({ ...prev, [factory]: newBottleneckWCs.length > 0 }));
   };
 
-  const loading = tab === 'capacity' ? loadingCapacity : tab === 'sourcing' ? loadingSourcing : false;
-  
-  const hasResults = capacityResult || sourcingResult;
+  // Auto-run sourcing analysis when Raw Material Needs tab is active
+  useEffect(() => {
+    if (tab !== 'stream') return;
+    let cancelled = false;
+    setLoadingSourcing(true);
+    setError(null);
+    api.sourcing({ factory, scenario })
+      .then(res => { if (!cancelled) setSourcingResult(res); })
+      .catch(e => { if (!cancelled) setError(String(e)); })
+      .finally(() => { if (!cancelled) setLoadingSourcing(false); });
+    return () => { cancelled = true; };
+  }, [factory, scenario, tab]);
+
+  const handleOrderMaterial = (code: string, _name: string, qty: number, unit: string, deadline: string) => {
+    setPreselectedMaterial(code);
+    setPreselectedQty(qty);
+    setPreselectedUnit(unit);
+    setPreselectedDeadline(deadline);
+    setTab('order');
+  };
+
+  const loading = tab === 'pulse' ? loadingCapacity : tab === 'stream' ? loadingSourcing : false;
+  const hasResults = (tab === 'pulse' && !!capacityResult) || (tab === 'stream' && !!sourcingResult);
+  const showControls = tab === 'pulse' || tab === 'stream';
 
   const handlePrint = () => {
     const date = new Date().toISOString().slice(0, 10);
     const prev = document.title;
-
     document.title = `${factory}_${scenario}_${date}`;
-
     const restoreTitle = () => {
       document.title = prev;
       window.removeEventListener('afterprint', restoreTitle);
     };
-
     window.addEventListener('afterprint', restoreTitle);
-
     window.print();
   };
 
@@ -114,14 +189,14 @@ export default function App() {
         )}
       </div>
       <p style={{ margin: '0 0 20px', color: '#6b7280', fontSize: 14 }}>
-        Capacity planning &amp; supply chain scenario analysis
+        Project-level optimization &amp; supply chain scenario analysis
       </p>
 
-      {/* Print-only header with metadata */}
+      {/* Print-only header */}
       <div className="print-header" style={{ marginBottom: 20, borderBottom: '1px solid #e5e7eb', paddingBottom: 12 }}>
         <p style={{ margin: 0, fontSize: 13, color: '#374151' }}>
           <strong>Factory:</strong> {factory} &nbsp;·&nbsp;
-          <strong>Scenario:</strong> {scenario.replace(/_/g, ' ')} &nbsp;·&nbsp;
+          <strong>Scenario:</strong> {SCENARIO_LABELS[scenario] ?? scenario.replace(/_/g, ' ')} &nbsp;·&nbsp;
           <strong>Generated:</strong> {new Date().toLocaleString()}
         </p>
       </div>
@@ -139,34 +214,46 @@ export default function App() {
         </div>
       )}
 
-      {/* Controls — hidden on GCI tab (it has its own controls) */}
-      {tab !== 'gci' && (
-        <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', marginBottom: 20, flexWrap: 'wrap' }}>
-          <FactorySelector factories={factories} value={factory} onChange={setFactory} />
+      {/* Factory/Scenario controls — only on pulse and stream tabs */}
+      {showControls && (
+        <div className="no-print" style={{ display: 'flex', gap: 12, alignItems: 'flex-end', marginBottom: 20, flexWrap: 'wrap' }}>
+          <FactorySelector factories={factories} value={factory} onChange={setFactory} bottleneckFactories={new Set(Object.entries(bottleneckCache).filter(([,v]) => v).map(([k]) => k))} />
           <ScenarioSelector scenarios={scenarios} value={scenario} onChange={setScenario} />
-          <button onClick={run} disabled={loading} style={btnStyle}>
-            {loading ? 'Running…' : 'Run Analysis'}
-          </button>
+          {loading && (
+            <span style={{ fontSize: 13, color: '#6b7280', alignSelf: 'center' }}>Updating…</span>
+          )}
         </div>
       )}
 
       {/* Tab bar */}
       <div className="no-print" style={{ display: 'flex', gap: 0, borderBottom: '2px solid #e5e7eb', marginBottom: 20 }}>
-        <TabButton active={tab === 'capacity'} onClick={() => setTab('capacity')}>
-          Capacity
+        <TabButton active={tab === 'project'} onClick={() => setTab('project')}>
+          🔩 New Project
         </TabButton>
-        <TabButton active={tab === 'sourcing'} onClick={() => setTab('sourcing')}>
-          Sourcing
+        <TabButton active={tab === 'order'} onClick={() => setTab('order')}>
+          📦 Order Materials
         </TabButton>
-        <TabButton active={tab === 'gci'} onClick={() => setTab('gci')}>
-          GCI Optimiser
+        <TabButton active={tab === 'pulse'} onClick={() => setTab('pulse')}>
+          📊 Factory Pulse
+        </TabButton>
+        <TabButton active={tab === 'stream'} onClick={() => setTab('stream')}>
+          🚚 Raw Material Needs
+        </TabButton>
+        <TabButton active={tab === 'disaster'} onClick={() => setTab('disaster')} danger>
+          🔴 Disruption Sim
+        </TabButton>
+        <TabButton active={tab === 'import'} onClick={() => setTab('import')}>
+          ⬆ Import Data
         </TabButton>
       </div>
 
       {loading && <LoadingState />}
 
       {error && (
-        <div className="no-print" style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, padding: '12px 16px', color: '#991b1b', fontSize: 13 }}>
+        <div className="no-print" style={{
+          background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8,
+          padding: '12px 16px', color: '#991b1b', fontSize: 13,
+        }}>
           {error}
         </div>
       )}
@@ -179,96 +266,166 @@ export default function App() {
       )}
 
       {/* Capacity section — visible on screen only when tab=capacity; always visible in print */}
+      {/* New Project */}
+      {tab === 'project' && <ProjectSimulator plates={plates} gaskets={gaskets} />}
+
+      {/* Order Materials */}
+      {tab === 'order' && (
+        <ProjectArchitect
+          rawMaterials={rawMaterials}
+          factories={factories}
+          initialMaterial={preselectedMaterial}
+          initialQty={preselectedQty}
+          initialUnit={preselectedUnit}
+          initialDeadline={preselectedDeadline}
+        />
+      )}
+
+      {/* Factory Pulse */}
       {capacityResult && !loadingCapacity && (
         <div
           className="print-section"
-          style={{ display: tab === 'capacity' ? 'flex' : 'none', flexDirection: 'column', gap: 16 }}
+          style={{ display: tab === 'pulse' ? 'flex' : 'none', flexDirection: 'column', gap: 16 }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-            <span style={{ fontSize: 13, color: '#6b7280' }}>
-              <strong style={{ color: '#111827', fontSize: 15 }}>Capacity Analysis</strong>
-              {' — '}
-              {capacityResult.agent1_result.factory} · {capacityResult.agent1_result.period} · Overall utilization:{' '}
-              <strong style={{ color: '#111827' }}>
-                {(capacityResult.agent1_result.capacity_utilization * 100).toFixed(1)}%
-              </strong>
-            </span>
-            <DataQualityBadge
-              excludedRows={capacityResult.agent1_result.excluded_rows}
-              flagCount={capacityResult.agent1_result.flag_count}
-              reconstructedRows={capacityResult.agent1_result.reconstructed_rows}
-            />
+          {/* Explainer */}
+          <div style={{
+            background: 'linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%)',
+            borderRadius: 10, padding: '14px 20px', color: '#fff',
+          }}>
+            <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 4 }}>📊 Factory Pulse — Capacity Analysis</div>
+            <p style={{ margin: 0, fontSize: 13, opacity: 0.8, lineHeight: 1.5 }}>
+              Shows how loaded each work center (press, extrusion, assembly, etc.) is against available capacity.
+              Green = comfortable, amber = near limit, red = overloaded. Bottlenecks are highlighted automatically.
+            </p>
           </div>
-          <CapacityChart data={capacityResult.per_work_center} />
-          <BottleneckAlert result={capacityResult.agent1_result} />
-          <Agent2Panel verdict={capacityResult.agent2_verdict} />
+
+          {/* Simulated state banner */}
+          {reallocationApplied && simulatedCapacityResult && (
+            <div style={{
+              background: '#eff6ff', border: '1px solid #93c5fd', borderRadius: 8,
+              padding: '10px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8,
+            }}>
+              <span style={{ fontSize: 13, color: '#1d4ed8', fontWeight: 600 }}>
+                Simulated view — after reallocation to NW03
+              </span>
+              <button onClick={() => { setReallocationApplied(false); setSimulatedCapacityResult(null); }} style={{
+                fontSize: 12, cursor: 'pointer', background: 'transparent',
+                border: '1px solid #93c5fd', borderRadius: 5, color: '#1d4ed8', padding: '3px 10px',
+              }}>
+                Reset to original
+              </button>
+            </div>
+          )}
+
+          {(() => {
+            const displayed = simulatedCapacityResult ?? capacityResult;
+            return (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                  <span style={{ fontSize: 13, color: '#6b7280' }}>
+                    <strong style={{ color: '#111827', fontSize: 15 }}>{displayed.agent1_result.factory}</strong>
+                    {' · '}{displayed.agent1_result.period}
+                    {' · '}Overall utilization:{' '}
+                    <strong style={{ color: '#111827' }}>
+                      {(displayed.agent1_result.capacity_utilization * 100).toFixed(1)}%
+                    </strong>
+                  </span>
+                  <DataQualityBadge
+                    excludedRows={displayed.agent1_result.excluded_rows}
+                    flagCount={displayed.agent1_result.flag_count}
+                    reconstructedRows={displayed.agent1_result.reconstructed_rows}
+                  />
+                </div>
+                <CapacityChart data={displayed.per_work_center} />
+                <BottleneckAlert result={displayed.agent1_result} />
+                {capacityResult.reallocation && (
+                  <ReallocationBanner
+                    reallocation={capacityResult.reallocation}
+                    onApply={!reallocationApplied ? handleApplyReallocation : undefined}
+                    applied={reallocationApplied}
+                  />
+                )}
+                <Agent2Panel verdict={displayed.agent2_verdict} />
+              </>
+            );
+          })()}
         </div>
       )}
 
-      {/* Sourcing section — visible on screen only when tab=sourcing; always visible in print */}
+      {/* Raw Material Needs */}
       {sourcingResult && !loadingSourcing && (
         <div
           className="print-section"
-          style={{ display: tab === 'sourcing' ? 'flex' : 'none', flexDirection: 'column', gap: 12 }}
+          style={{ display: tab === 'stream' ? 'flex' : 'none', flexDirection: 'column', gap: 12 }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: 15, fontWeight: 700, color: '#111827' }}>Sourcing Analysis</span>
-            <span style={{ fontSize: 13, color: '#6b7280' }}>
-              {sourcingResult.factory} · {sourcingResult.period} · {sourcingResult.scenario.replace(/_/g, ' ')}
-            </span>
+          {/* Explainer */}
+          <div style={{
+            background: 'linear-gradient(135deg, #0f3460 0%, #0369a1 100%)',
+            borderRadius: 10, padding: '14px 20px', color: '#fff',
+          }}>
+            <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 4 }}>🚚 Raw Material Needs</div>
+            <p style={{ margin: 0, fontSize: 13, opacity: 0.8, lineHeight: 1.5 }}>
+              Based on the current operations plan and demand scenario, these are the raw materials that need to be ordered.
+              Each card shows when you must place the order to meet production deadlines.
+              Click <strong>📦 Order</strong> to jump directly to Order Materials with that material pre-selected.
+            </p>
           </div>
-          <SourcingPanel data={sourcingResult} />
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 15, fontWeight: 700, color: '#111827' }}>
+              {sourcingResult.factory} · {SCENARIO_LABELS[sourcingResult.scenario] ?? sourcingResult.scenario.replace(/_/g, ' ')}
+            </span>
+            <span style={{ fontSize: 13, color: '#6b7280' }}>{sourcingResult.period}</span>
+          </div>
+          <SourcingPanel data={sourcingResult} onOrder={handleOrderMaterial} />
         </div>
       )}
 
-      {/* GCI tab */}
-      {tab === 'gci' && <GCIPanel />}
+      {/* Disruption Sim */}
+      {tab === 'disaster' && <DisasterPanel factories={factories} scenarios={scenarios} />}
 
-      {/* Empty state prompts */}
-      {tab === 'capacity' && !capacityResult && !loading && !error && (
-        <EmptyState text="Select a factory and scenario, then click Run Analysis." />
-      )}
-      {tab === 'sourcing' && !sourcingResult && !loading && !error && (
-        <EmptyState text="Select a factory and scenario, then click Run Analysis to see raw material order schedule." />
+      {/* Import Data */}
+      {tab === 'import' && (
+        <DataUploadPanel onUploadSuccess={() => {
+          api.factories().then(r => setFactories(r.factories)).catch(() => {});
+          api.plates().then(r => setPlates(r.materials)).catch(() => {});
+          api.gaskets().then(r => setGaskets(r.materials)).catch(() => {});
+          api.rawMaterials().then(r => setRawMaterials(r.materials)).catch(() => {});
+        }} />
       )}
     </div>
   );
 }
 
-function TabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+function TabButton({ active, onClick, children, danger }: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+  danger?: boolean;
+}) {
+  const accent = danger ? '#dc2626' : '#2563eb';
   return (
     <button onClick={onClick} style={{
-      padding: '8px 20px',
+      padding: '8px 16px',
       border: 'none',
-      borderBottom: active ? '2px solid #2563eb' : '2px solid transparent',
+      borderBottom: active ? `2px solid ${accent}` : '2px solid transparent',
       marginBottom: -2,
-      background: 'none',
-      fontSize: 14,
-      fontWeight: active ? 600 : 400,
-      color: active ? '#2563eb' : '#6b7280',
+      background: active ? (danger ? '#fff5f5' : '#eff6ff') : 'none',
+      fontSize: 13,
+      fontWeight: active ? 700 : 400,
+      color: active ? accent : '#6b7280',
       cursor: 'pointer',
+      whiteSpace: 'nowrap',
+      borderRadius: active ? '6px 6px 0 0' : 0,
+      transition: 'background 0.15s, color 0.15s',
     }}>
       {children}
     </button>
   );
 }
 
-function EmptyState({ text }: { text: string }) {
-  return (
-    <div style={{ textAlign: 'center', padding: '48px 0', color: '#9ca3af', fontSize: 14 }}>
-      {text}
-    </div>
-  );
-}
-
-const btnStyle: React.CSSProperties = {
-  padding: '7px 20px', borderRadius: 6, border: 'none',
-  background: '#2563eb', color: '#fff', fontSize: 14, fontWeight: 600,
-  cursor: 'pointer', height: 36,
-};
-
 const printBtnStyle: React.CSSProperties = {
   padding: '6px 14px', borderRadius: 6, border: '1px solid #d1d5db',
   background: '#fff', color: '#374151', fontSize: 13, fontWeight: 500,
   cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
-};
+}}

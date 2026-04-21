@@ -2,14 +2,19 @@ interface Props {
   factories: string[];
   value: string;
   onChange: (v: string) => void;
+  bottleneckFactories?: Set<string>;
 }
 
-export function FactorySelector({ factories, value, onChange }: Props) {
+export function FactorySelector({ factories, value, onChange, bottleneckFactories }: Props) {
   return (
     <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
       <span style={{ fontSize: 12, fontWeight: 600, color: '#6b7280' }}>FACTORY</span>
       <select value={value} onChange={e => onChange(e.target.value)} style={selectStyle}>
-        {factories.map(f => <option key={f} value={f}>{f}</option>)}
+        {factories.map(f => (
+          <option key={f} value={f}>
+            {bottleneckFactories?.has(f) ? `🔴 ${f}` : f}
+          </option>
+        ))}
       </select>
     </label>
   );
