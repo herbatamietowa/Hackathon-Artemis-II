@@ -1,5 +1,11 @@
 import os
 from pathlib import Path
+from dotenv import load_dotenv
+load_dotenv()
+
+class Settings:
+    DB_URL = os.getenv("DB_URL")
+settings = Settings()
 
 # Agent 1 — Groq (free, LPU-accelerated, ~1-2s inference)
 GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
