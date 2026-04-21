@@ -1,4 +1,4 @@
-import type { AnalyzeRequest, AnalyzeResponse, ApproveProjectRequest, ConfirmProjectRequest, DebateProjectPathRequest, DebateProjectPathResponse, DisasterRequest, DisasterResult, GCIRequest, GCIResponse, MaterialOption, ProjectArchitectRequest, ProjectArchitectResponse, ProjectSimulationRequest, ProjectSimulationResult, RawMaterialItem, RawMaterialOrderRequest, SourcingRequest, SourcingResponse, UploadDataResponse } from '../types';
+import type { AnalyzeRequest, AnalyzeResponse, ApproveProjectRequest, CompatibleGasketsResult, ConfirmProjectRequest, DebateProjectPathRequest, DebateProjectPathResponse, DeliveryDestination, DisasterRequest, DisasterResult, GCIRequest, GCIResponse, MaterialOption, ProjectArchitectRequest, ProjectArchitectResponse, ProjectSimulationRequest, ProjectSimulationResult, RawMaterialItem, RawMaterialOrderRequest, SourcingRequest, SourcingResponse, UploadDataResponse } from '../types';
 
 const BASE = '/api';
 
@@ -39,6 +39,8 @@ export const api = {
   simulateProject: (req: ProjectSimulationRequest) => post<ProjectSimulationResult>('/simulate-project', req),
   approveProject: (req: ApproveProjectRequest) => post<{ status: string; record: Record<string, unknown> }>('/approve-project', req),
   debateProjectPath: (req: DebateProjectPathRequest) => post<DebateProjectPathResponse>('/debate-project-path', req),
+  compatibleGaskets: (plateCode: string) => get<CompatibleGasketsResult>(`/compatible-gaskets?plate_code=${encodeURIComponent(plateCode)}`),
+  deliveryDestinations: () => get<DeliveryDestination[]>('/delivery-destinations'),
   uploadData: async (file: File): Promise<UploadDataResponse> => {
     const form = new FormData();
     form.append('file', file);

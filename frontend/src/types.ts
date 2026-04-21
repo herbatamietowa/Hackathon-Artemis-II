@@ -234,6 +234,8 @@ export interface SimulationPath {
   plant: string;
   plant_name: string;
   mode: string;
+  transport_mode: string;
+  transport_note: string | null;
   total_cost_eur: number;
   plate_cost: number;
   gasket_cost: number;
@@ -246,6 +248,16 @@ export interface SimulationPath {
   grid_intensity: number;
   scrap_factor: number;
   estimated_co2_kg: number;
+  rm_ordered_at_plant: boolean;
+  stock_available_qty: number;
+  delivery_name: string;
+  delivery_dist_km: number;
+  is_bom_pair: boolean;
+  joining_time_days: number;
+  joining_note: string | null;
+  inter_plant_days: number;
+  inter_plant_cost_eur: number;
+  inter_plant_co2_kg: number;
 }
 
 export interface ProjectSimulationResult {
@@ -258,11 +270,38 @@ export interface ProjectSimulationResult {
   raw_materials: RawMaterialStatus[];
   paths: SimulationPath[];
   warning: string | null;
+  data_quality_warning: boolean;
 }
 
 export interface ProjectSimulationRequest {
   plate_code: string;
   quantity: number;
+  delivery_lat?: number;
+  delivery_lon?: number;
+  delivery_name?: string;
+  gasket_override?: string;
+  item_type?: string;
+}
+
+export interface DeliveryDestination {
+  name: string;
+  lat: number;
+  lon: number;
+  continent: string;
+  island: boolean;
+}
+
+export interface CompatibleGasketItem {
+  code: string;
+  name: string;
+}
+
+export interface CompatibleGasketsResult {
+  plate_code: string;
+  tool_prefixes: string[];
+  compatible_gaskets: CompatibleGasketItem[];
+  data_quality_warning: boolean;
+  warning_message: string | null;
 }
 
 export interface RawMaterialItem {
@@ -299,6 +338,9 @@ export interface DebateProjectPathRequest {
   plate_code: string;
   quantity: number;
   user_argument?: string;
+  delivery_lat?: number;
+  delivery_lon?: number;
+  delivery_name?: string;
 }
 
 export interface UploadDataResponse {
