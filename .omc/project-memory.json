@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1776535451170,
-  "projectRoot": "c:\\Users\\Olga\\Documents\\uni\\semester4\\hackathon\\Hackathon-Artemis-II",
+  "lastScanned": 1776793698562,
+  "projectRoot": "c:\\Users\\natal\\Documents\\GitHub\\Hackathon-Artemis-II",
   "techStack": {
     "languages": [
       {
@@ -14,7 +14,7 @@
       }
     ],
     "frameworks": [],
-    "packageManager": "pip",
+    "packageManager": "npm",
     "runtime": null
   },
   "build": {
@@ -47,7 +47,7 @@
       "path": "backend",
       "purpose": null,
       "fileCount": 2,
-      "lastAccessed": 1776535451154,
+      "lastAccessed": 1776793698528,
       "keyFiles": [
         "Dockerfile",
         "requirements.txt"
@@ -57,7 +57,7 @@
       "path": "data",
       "purpose": "Data files",
       "fileCount": 2,
-      "lastAccessed": 1776535451155,
+      "lastAccessed": 1776793698529,
       "keyFiles": [
         "Data_Dictionary_overview.xlsx",
         "hackathon_dataset.xlsx"
@@ -67,7 +67,7 @@
       "path": "frontend",
       "purpose": null,
       "fileCount": 7,
-      "lastAccessed": 1776535451155,
+      "lastAccessed": 1776793698529,
       "keyFiles": [
         "Dockerfile",
         "index.html",
@@ -80,7 +80,7 @@
       "path": "notebooks",
       "purpose": null,
       "fileCount": 1,
-      "lastAccessed": 1776535451156,
+      "lastAccessed": 1776793698529,
       "keyFiles": [
         "starter_notebook.ipynb"
       ]
@@ -89,7 +89,7 @@
       "path": "scripts",
       "purpose": "Build/utility scripts",
       "fileCount": 1,
-      "lastAccessed": 1776535451156,
+      "lastAccessed": 1776793698530,
       "keyFiles": [
         "generate_dataset.py"
       ]
@@ -98,36 +98,36 @@
       "path": "backend\\app",
       "purpose": "Application code",
       "fileCount": 3,
-      "lastAccessed": 1776535451157,
+      "lastAccessed": 1776793698531,
       "keyFiles": [
         "config.py",
         "main.py",
         "__init__.py"
       ]
     },
+    "backend\\scripts": {
+      "path": "backend\\scripts",
+      "purpose": "Build/utility scripts",
+      "fileCount": 0,
+      "lastAccessed": 1776793698531,
+      "keyFiles": []
+    },
     "backend\\tests": {
       "path": "backend\\tests",
       "purpose": "Test files",
       "fileCount": 7,
-      "lastAccessed": 1776535451157,
+      "lastAccessed": 1776793698532,
       "keyFiles": [
         "test_agent1_numeric_guard.py",
         "test_agent2_isolation.py",
         "test_capacity.py"
       ]
     },
-    "frontend\\node_modules": {
-      "path": "frontend\\node_modules",
-      "purpose": "Dependencies",
-      "fileCount": 1,
-      "lastAccessed": 1776535451158,
-      "keyFiles": []
-    },
     "frontend\\src": {
       "path": "frontend\\src",
       "purpose": "Source code",
       "fileCount": 3,
-      "lastAccessed": 1776535451158,
+      "lastAccessed": 1776793698533,
       "keyFiles": [
         "App.tsx",
         "main.tsx",
@@ -138,14 +138,14 @@
   "hotPaths": [
     {
       "path": "backend\\app\\api\\routes.py",
-      "accessCount": 49,
-      "lastAccessed": 1776584249114,
+      "accessCount": 51,
+      "lastAccessed": 1776793885980,
       "type": "file"
     },
     {
       "path": "frontend\\src\\App.tsx",
-      "accessCount": 43,
-      "lastAccessed": 1776581461915,
+      "accessCount": 49,
+      "lastAccessed": 1776794140092,
       "type": "file"
     },
     {
@@ -158,6 +158,12 @@
       "path": "frontend\\src\\components\\ProjectArchitect.tsx",
       "accessCount": 18,
       "lastAccessed": 1776567247167,
+      "type": "file"
+    },
+    {
+      "path": "frontend\\src\\api\\client.ts",
+      "accessCount": 18,
+      "lastAccessed": 1776793891460,
       "type": "file"
     },
     {
@@ -176,12 +182,6 @@
       "path": "frontend\\src\\types.ts",
       "accessCount": 16,
       "lastAccessed": 1776581385375,
-      "type": "file"
-    },
-    {
-      "path": "frontend\\src\\api\\client.ts",
-      "accessCount": 16,
-      "lastAccessed": 1776581391005,
       "type": "file"
     },
     {
@@ -209,21 +209,27 @@
       "type": "file"
     },
     {
+      "path": "",
+      "accessCount": 5,
+      "lastAccessed": 1776793833350,
+      "type": "directory"
+    },
+    {
       "path": "backend\\app\\agents\\agent1_capacity.py",
       "accessCount": 4,
       "lastAccessed": 1776566187072,
       "type": "file"
     },
     {
-      "path": "",
-      "accessCount": 4,
-      "lastAccessed": 1776582154602,
-      "type": "directory"
-    },
-    {
       "path": "backend\\app\\data\\loader.py",
       "accessCount": 4,
       "lastAccessed": 1776584184246,
+      "type": "file"
+    },
+    {
+      "path": "frontend\\src\\components\\TimelineChart.tsx",
+      "accessCount": 4,
+      "lastAccessed": 1776793911960,
       "type": "file"
     },
     {

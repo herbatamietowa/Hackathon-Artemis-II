@@ -59,7 +59,7 @@ export function TimelineChart({ points, loading, error }: Props) {
     </div>
   );
 
-  if (loading) return placeholder('Loading 36-month capacity forecast…');
+  if (loading) return placeholder('Loading capacity forecast…');
   if (error)   return placeholder('Could not load timeline — check backend connection.');
   if (!points.length) return placeholder('No timeline data available for this factory/scenario.');
 
@@ -74,15 +74,20 @@ export function TimelineChart({ points, loading, error }: Props) {
   const bottleneckCount = chartData.filter(p => p.bottleneck).length;
   const maxUtil = Math.max(...chartData.map(p => p.util));
 
-  // Show every 3rd label to avoid crowding
+  const tickStep = chartData.length <= 12 ? 1 : chartData.length <= 24 ? 2 : 3;
   const tickFormatter = (_: string, index: number) =>
-    index % 3 === 0 ? chartData[index]?.period ?? '' : '';
+    index % tickStep === 0 ? chartData[index]?.period ?? '' : '';
 
   return (
     <div style={{ background: '#fff', borderRadius: 8, padding: 16, boxShadow: '0 1px 3px rgba(0,0,0,.1)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: '#111827' }}>
-          36-Month Capacity Forecast
+          Capacity Forecast
+          {chartData.length > 0 && (
+            <span style={{ fontWeight: 400, fontSize: 13, color: '#6b7280', marginLeft: 8 }}>
+              through {chartData[chartData.length - 1].period}
+            </span>
+          )}
         </h3>
         <div style={{ display: 'flex', gap: 12, fontSize: 12, color: '#6b7280' }}>
           <span>Peak: <strong style={{ color: maxUtil >= 90 ? '#ef4444' : '#111827' }}>{maxUtil.toFixed(1)}%</strong></span>

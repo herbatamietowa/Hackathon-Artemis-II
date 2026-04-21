@@ -29,8 +29,8 @@ export const api = {
   analyze: (req: AnalyzeRequest) => post<AnalyzeResponse>('/analyze', req),
   sourcing: (req: SourcingRequest) => post<SourcingResponse>('/sourcing', req),
   gci: (req: GCIRequest) => post<GCIResponse>('/gci', req),
-  timeline: (factory: string, scenario: string, months = 36) =>
-  get<TimelineResponse>(`/timeline?factory=${encodeURIComponent(factory)}&scenario=${encodeURIComponent(scenario)}&months=${months}`),
+  timeline: (factory: string, scenario: string) =>
+    get<TimelineResponse>(`/timeline?factory=${encodeURIComponent(factory)}&scenario=${encodeURIComponent(scenario)}`),
   disaster: (req: DisasterRequest) => post<DisasterResult>('/disaster', req),
   projectArchitect: (req: ProjectArchitectRequest) => post<ProjectArchitectResponse>('/project-architect', req),
   confirmProject: (req: ConfirmProjectRequest) => post<{ status: string }>('/confirm-project', req),

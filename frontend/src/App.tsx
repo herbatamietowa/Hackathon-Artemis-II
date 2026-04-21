@@ -76,13 +76,12 @@ export default function App() {
   useEffect(() => {
     setLoadingTimeline(true);
     setTimelineError(false);
-    api.timeline(factory, scenario, 36)
+    api.timeline(factory, scenario)
       .then(r => setTimelinePoints(r.points))
       .catch(() => { setTimelinePoints([]); setTimelineError(true); })
       .finally(() => setLoadingTimeline(false));
   }, [factory, scenario]);
 
-  const run = async () => {
   // Auto-run capacity analysis when Factory Pulse tab is active
   useEffect(() => {
     if (tab !== 'pulse') return;
@@ -258,14 +257,14 @@ export default function App() {
         </div>
       )}
 
-      {/* Timeline — loads automatically on factory/scenario change, always shown on capacity tab */}
-      {tab === 'capacity' && (
+      {/* Timeline — loads automatically on factory/scenario change, always shown on Factory Pulse tab */}
+      {tab === 'pulse' && (
         <div className="print-section" style={{ marginBottom: 16 }}>
           <TimelineChart points={timelinePoints} loading={loadingTimeline} error={timelineError} />
         </div>
       )}
 
-      {/* Capacity section — visible on screen only when tab=capacity; always visible in print */}
+      {/* Capacity section — visible on screen only when tab=pulse; always visible in print */}
       {/* New Project */}
       {tab === 'project' && <ProjectSimulator plates={plates} gaskets={gaskets} />}
 
@@ -428,4 +427,4 @@ const printBtnStyle: React.CSSProperties = {
   padding: '6px 14px', borderRadius: 6, border: '1px solid #d1d5db',
   background: '#fff', color: '#374151', fontSize: 13, fontWeight: 500,
   cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
-}}
+}

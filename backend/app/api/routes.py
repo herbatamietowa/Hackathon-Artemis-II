@@ -87,24 +87,28 @@ def list_factories() -> FactoryListResponse:
     return FactoryListResponse(factories=["NW01", "NW03"])
 
 
+DATA_END_YEAR = 2027
+DATA_END_MONTH = 12
+
+
 @router.get("/timeline", response_model=TimelineResponse)
 def timeline(
     factory: str = "NW01",
     scenario: str = "probability_weighted",
-    months: int = 36,
 ) -> TimelineResponse:
-    """Return capacity utilization for up to 36 months."""
+    """Return capacity utilization from today until end of available data."""
     if scenario not in SCENARIOS:
         raise HTTPException(status_code=400, detail=f"Unknown scenario: {scenario}")
-    months = min(max(months, 1), 36)
 
     today = date.today()
     periods: list[str] = []
     m, y = today.month, today.year
-    for _ in range(months):
+    while True:
         m += 1
         if m > 12:
             m, y = 1, y + 1
+        if y > DATA_END_YEAR or (y == DATA_END_YEAR and m > DATA_END_MONTH):
+            break
         periods.append(f"{m} {y}")
 
     points: list[TimelinePoint] = []
