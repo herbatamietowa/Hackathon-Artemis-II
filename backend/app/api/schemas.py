@@ -310,6 +310,8 @@ class SimulationPathModel(BaseModel):
     plant: str
     plant_name: str
     mode: str
+    transport_mode: str = "road"
+    transport_note: Optional[str] = None
     total_cost_eur: float
     plate_cost: float
     gasket_cost: float
@@ -322,11 +324,26 @@ class SimulationPathModel(BaseModel):
     grid_intensity: float
     scrap_factor: float
     estimated_co2_kg: float = 0.0
+    rm_ordered_at_plant: bool = False
+    stock_available_qty: int = 0
+    delivery_name: str = "Unspecified"
+    delivery_dist_km: float = 0.0
+    is_bom_pair: bool = False
+    joining_time_days: int = 0
+    joining_note: Optional[str] = None
+    inter_plant_days: int = 0
+    inter_plant_cost_eur: float = 0.0
+    inter_plant_co2_kg: float = 0.0
 
 
 class ProjectSimulationRequest(BaseModel):
     plate_code: str
     quantity: int = 1
+    delivery_lat: Optional[float] = None
+    delivery_lon: Optional[float] = None
+    delivery_name: str = "Unspecified"
+    gasket_override: Optional[str] = None
+    item_type: str = "plate"
 
 
 class ProjectSimulationResponse(BaseModel):
@@ -339,6 +356,32 @@ class ProjectSimulationResponse(BaseModel):
     raw_materials: list[RawMaterialStatusModel]
     paths: list[SimulationPathModel]
     warning: Optional[str]
+    data_quality_warning: bool = False
+
+
+# ---------------------------------------------------------------------------
+# Compatible gaskets + delivery destinations
+# ---------------------------------------------------------------------------
+
+class CompatibleGasketItem(BaseModel):
+    code: str
+    name: str
+
+
+class CompatibleGasketsResponse(BaseModel):
+    plate_code: str
+    tool_prefixes: list[str]
+    compatible_gaskets: list[CompatibleGasketItem]
+    data_quality_warning: bool
+    warning_message: Optional[str] = None
+
+
+class DeliveryDestinationModel(BaseModel):
+    name: str
+    lat: float
+    lon: float
+    continent: str
+    island: bool = False
 
 
 class ApproveProjectRequest(BaseModel):
@@ -362,6 +405,9 @@ class DebateProjectPathRequest(BaseModel):
     plate_code: str
     quantity: int = 1
     user_argument: Optional[str] = None
+    delivery_lat: Optional[float] = None
+    delivery_lon: Optional[float] = None
+    delivery_name: str = "Unspecified"
 
 
 class DebateProjectPathResponse(BaseModel):

@@ -34,28 +34,37 @@ SHEET_ALIAS = {
     "s32": "3_2 Component_SF_RM",
 }
 
+# In-memory override set by upload endpoint — survives until restart
+_wb_override: dict[str, pd.DataFrame] | None = None
+
 
 @functools.lru_cache(maxsize=1)
-def load_workbook(path: str | Path) -> dict[str, pd.DataFrame]:
-    """Load all sheets once and cache. Reads #N/A as NaN (default pandas behaviour)."""
-    path = Path(path)
+def _load_from_disk(path: Path) -> dict[str, pd.DataFrame]:
+    """Load all sheets once from disk and cache."""
     if not path.exists():
         raise FileNotFoundError(f"Dataset not found: {path}")
-
-    raw = pd.read_excel(
-        path,
-        sheet_name=None,  # load all sheets
-        engine="openpyxl",
-    )
-    # Normalise sheet names (strip trailing spaces)
+    raw = pd.read_excel(path, sheet_name=None, engine="openpyxl")
     return {k.strip(): v for k, v in raw.items()}
+
+
+def load_workbook(path: str | Path) -> dict[str, pd.DataFrame]:
+    """Return the active workbook — override if set, otherwise disk cache."""
+    if _wb_override is not None:
+        return _wb_override
+    return _load_from_disk(Path(path))
+
+
+def set_workbook_override(wb: dict[str, pd.DataFrame]) -> None:
+    """Replace the active workbook with a merged in-memory version."""
+    global _wb_override
+    _wb_override = wb
+    _load_from_disk.cache_clear()
 
 
 def get_sheet(alias: str, path: str | Path) -> pd.DataFrame:
     """Return a sheet by short alias (e.g. 's11', 's26')."""
     wb = load_workbook(path)
     full_name = SHEET_ALIAS[alias].strip()
-    # Try exact match first, then strip-matched
     for k in wb:
         if k == full_name or k.strip() == full_name:
             return wb[k].copy()
@@ -63,4 +72,6 @@ def get_sheet(alias: str, path: str | Path) -> pd.DataFrame:
 
 
 def invalidate_cache() -> None:
-    load_workbook.cache_clear()
+    global _wb_override
+    _wb_override = None
+    _load_from_disk.cache_clear()

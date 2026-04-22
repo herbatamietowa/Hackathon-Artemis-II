@@ -13,8 +13,11 @@ from .schemas import (
     AnalyzeRequest,
     AnalyzeResponse,
     ApproveProjectRequest,
+    CompatibleGasketsResponse,
+    ConfirmProjectRequest,
     DebateProjectPathRequest,
     DebateProjectPathResponse,
+    DeliveryDestinationModel,
     DisasterRequest,
     DisasterResult,
     FactoryListResponse,
@@ -341,6 +344,11 @@ def simulate_project(req: ProjectSimulationRequest) -> ProjectSimulationResponse
             plate_code=req.plate_code,
             quantity=req.quantity,
             data_path=DATA_PATH,
+            delivery_lat=req.delivery_lat,
+            delivery_lon=req.delivery_lon,
+            delivery_name=req.delivery_name,
+            gasket_override=req.gasket_override,
+            item_type=req.item_type,
         )
         return ProjectSimulationResponse(
             plate_code=result.plate_code,
@@ -352,10 +360,36 @@ def simulate_project(req: ProjectSimulationRequest) -> ProjectSimulationResponse
             raw_materials=[RawMaterialStatusModel(**vars(r)) for r in result.raw_materials],
             paths=[SimulationPathModel(**vars(p)) for p in result.paths],
             warning=result.warning,
+            data_quality_warning=result.data_quality_warning,
         )
     except Exception as exc:
         logger.exception("simulate-project error: %s", exc)
         raise HTTPException(status_code=500, detail=str(exc))
+
+
+@router.get("/compatible-gaskets", response_model=CompatibleGasketsResponse)
+def compatible_gaskets(plate_code: str) -> CompatibleGasketsResponse:
+    """Return gaskets compatible with the given plate via the Tool No. 7-char prefix rule."""
+    try:
+        from ..engine.project_simulation import get_compatible_gaskets
+        result = get_compatible_gaskets(plate_code=plate_code, data_path=DATA_PATH)
+        return CompatibleGasketsResponse(
+            plate_code=plate_code,
+            tool_prefixes=result["tool_prefixes"],
+            compatible_gaskets=result["compatible_gaskets"],
+            data_quality_warning=result["data_quality_warning"],
+            warning_message=result.get("warning_message"),
+        )
+    except Exception as exc:
+        logger.exception("compatible-gaskets error: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@router.get("/delivery-destinations", response_model=list[DeliveryDestinationModel])
+def delivery_destinations() -> list[DeliveryDestinationModel]:
+    """Return the curated list of delivery destinations with coordinates."""
+    from ..engine.project_simulation import DELIVERY_DESTINATIONS
+    return [DeliveryDestinationModel(**d) for d in DELIVERY_DESTINATIONS]
 
 
 @router.get("/raw-materials", response_model=RawMaterialListResponse)
@@ -456,6 +490,9 @@ def debate_project_path(req: DebateProjectPathRequest) -> DebateProjectPathRespo
             plate_code=req.plate_code,
             quantity=req.quantity,
             data_path=DATA_PATH,
+            delivery_lat=req.delivery_lat,
+            delivery_lon=req.delivery_lon,
+            delivery_name=req.delivery_name,
         )
 
         if not result.paths:
@@ -516,10 +553,9 @@ def approve_project(req: ApproveProjectRequest) -> dict:
 
 @router.post("/upload-data", response_model=UploadDataResponse)
 async def upload_data(file: UploadFile = File(...)) -> UploadDataResponse:
-    """Merge an uploaded .xlsx into the main dataset and invalidate the cache."""
+    """Merge an uploaded .xlsx into the in-memory dataset cache — no disk I/O."""
     import io
-    import openpyxl
-    from ..data.loader import SHEET_NAMES, invalidate_cache
+    from ..data.loader import SHEET_NAMES, load_workbook, set_workbook_override
 
     contents = await file.read()
     try:
@@ -530,7 +566,6 @@ async def upload_data(file: UploadFile = File(...)) -> UploadDataResponse:
     uploaded_norm = {k.strip(): v for k, v in uploaded.items()}
     known = {s.strip() for s in SHEET_NAMES}
 
-    # Match uploaded sheets to known sheets by exact name or 3-char prefix
     matches: dict[str, pd.DataFrame] = {}
     for up_name, up_df in uploaded_norm.items():
         target = next((k for k in known if up_name == k or up_name[:3] == k[:3]), None)
@@ -540,35 +575,16 @@ async def upload_data(file: UploadFile = File(...)) -> UploadDataResponse:
     if not matches:
         raise HTTPException(status_code=400, detail="No sheets matched known dataset sheets. Check your file.")
 
-    # Load the workbook with openpyxl and append rows directly — avoids full read/rewrite
-    try:
-        wb = openpyxl.load_workbook(DATA_PATH)
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Cannot read dataset: {exc}")
-
+    # Merge into the current in-memory cache — never touches disk
+    current = load_workbook(DATA_PATH)
+    merged = dict(current)
     rows_added: dict[str, int] = {}
     for target, up_df in matches.items():
-        ws = next((wb[s] for s in wb.sheetnames if s.strip() == target), None)
-        if ws is None:
-            continue
-        headers = [cell.value for cell in ws[1]]
-        for _, row in up_df.iterrows():
-            new_row = []
-            for h in headers:
-                val = row.get(h) if h in up_df.columns else None
-                new_row.append(None if (val is None or (isinstance(val, float) and pd.isna(val))) else val)
-            ws.append(new_row)
+        existing = current.get(target, pd.DataFrame())
+        merged[target] = pd.concat([existing, up_df], ignore_index=True) if not existing.empty else up_df
         rows_added[target] = len(up_df)
 
-    if not rows_added:
-        raise HTTPException(status_code=400, detail="Sheets matched but no rows could be appended.")
-
-    try:
-        wb.save(DATA_PATH)
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Failed to save dataset: {exc}")
-
-    invalidate_cache()
+    set_workbook_override(merged)
     return UploadDataResponse(sheets_merged=list(rows_added.keys()), rows_added=rows_added)
 
 
