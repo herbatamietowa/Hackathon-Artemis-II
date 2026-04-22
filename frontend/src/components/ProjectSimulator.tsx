@@ -62,6 +62,7 @@ export function ProjectSimulator({ plates, gaskets }: { plates: MaterialOption[]
   const [orderPlaced, setOrderPlaced]   = useState(false);
   const [orderLoading, setOrderLoading] = useState(false);
   const [orderError, setOrderError]     = useState<string | null>(null);
+  const [projectName, setProjectName] = useState('');
 
   // Delivery destination
   const [destinations, setDestinations]   = useState<DeliveryDestination[]>([]);
@@ -233,7 +234,7 @@ export function ProjectSimulator({ plates, gaskets }: { plates: MaterialOption[]
       }).filter((item): item is ProjectItemCreate => item !== null);
 
       const projectData: ProjectCreate = {
-        name: `Project-${new Date().toISOString().split('T')[0]}`,
+        name: projectName.trim() || `Project-${new Date().toISOString().split('T')[0]}`,
         status: "Not approved",
         items: itemsToConfirm,
       };
@@ -257,6 +258,7 @@ export function ProjectSimulator({ plates, gaskets }: { plates: MaterialOption[]
   const totalCO2       = Object.values(selections).reduce((s, a) => s + a.co2_kg, 0);
   const selectedCount  = Object.keys(selections).length;
   const allSelected    = items.length > 0 && selectedCount === items.length;
+  
 
   useEffect(() => {
     if (allSelected && orderSummaryRef.current) {
@@ -269,7 +271,6 @@ export function ProjectSimulator({ plates, gaskets }: { plates: MaterialOption[]
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       {/* Hero */}
       <div 
-      ref={orderSummaryRef}
       style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e40af 100%)', borderRadius: 12, padding: '20px 24px', color: '#fff' }}>
         <h2 style={{ margin: '0 0 4px', fontSize: 20, fontWeight: 800 }}>New Project Simulation</h2>
         <p style={{ margin: 0, fontSize: 13, opacity: 0.8 }}>
@@ -467,12 +468,26 @@ export function ProjectSimulator({ plates, gaskets }: { plates: MaterialOption[]
             + Add Item
           </button>
           <button onClick={handleClear} style={clearBtn}>Clear All</button>
+          <input
+            placeholder="Project name (optional)"
+            value={projectName}
+            onChange={e => setProjectName(e.target.value)}
+            style={{
+              padding: '6px 12px', borderRadius: 6,
+              border: '1px solid #d1d5db',
+              background: '#f3f4f6',
+              color: '#111827',
+              fontSize: 13, width: 200,
+            }}
+          />
         </div>
       </div>
 
       {/* Order summary */}
       {selectedCount > 0 && (
-        <div style={{ background: 'linear-gradient(135deg, #065f46 0%, #047857 100%)', borderRadius: 10, padding: '16px 22px', display: 'flex', gap: 20, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div 
+        ref={orderSummaryRef}
+        style={{ background: 'linear-gradient(135deg, #065f46 0%, #047857 100%)', borderRadius: 10, padding: '16px 22px', display: 'flex', gap: 20, alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ color: '#fff', flex: 1 }}>
             <div style={{ fontSize: 11, opacity: 0.75, fontWeight: 600, textTransform: 'uppercase', marginBottom: 4 }}>Total Project Cost</div>
             <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.5px' }}>
