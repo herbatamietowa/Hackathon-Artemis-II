@@ -355,8 +355,9 @@ export interface RawMaterialOrderRequest {
 }
 
 export interface ApproveProjectRequest {
-  plate_code: string;
-  plate_name: string;
+  plate_code: string | null ;
+  plate_name: string | null;
+  gasket_name: string | null;
   gasket_code: string | null;
   quantity: number;
   path_name: string;

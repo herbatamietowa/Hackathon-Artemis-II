@@ -221,7 +221,7 @@ export function ProjectSimulator({ plates, gaskets }: { plates: MaterialOption[]
         return {
           item_type: item.type,
           final_code: state.result.plate_code ?? state.result.gasket_code ?? '',
-          description: state.result.plate_name ?? state.result.gasket_name ??  state.result.gasket_description ??  state.result.plate_description,
+          description: state.result.plate_name ?? state.result.gasket_name ??  state.result.gasket_description ??  state.result.plate_description ?? '',
           quantity: state.result.quantity,
           selected_path: sel.path,
           production_plant: sel.pathObj.plant,
@@ -229,7 +229,7 @@ export function ProjectSimulator({ plates, gaskets }: { plates: MaterialOption[]
           delivery_days: sel.pathObj.delivery_days,
           est_co2: sel.pathObj.estimated_co2_kg,
           grid_co2: sel.pathObj.grid_intensity,
-        };
+        } satisfies ProjectItemCreate;;
       }).filter((item): item is ProjectItemCreate => item !== null);
 
       const projectData: ProjectCreate = {
@@ -238,39 +238,19 @@ export function ProjectSimulator({ plates, gaskets }: { plates: MaterialOption[]
         items: itemsToConfirm,
       };
 
-       console.log("Sending to backend:", JSON.stringify(projectData, null, 2));
+      console.log("Sending to backend:", JSON.stringify(projectData, null, 2));
 
       const result = await api.confirmProject(projectData);
       console.log("Database Save Successful:", result);
 
-    setOrderLoading(true); setOrderError(null);
-    try {
-      for (const itemId of Object.keys(selections)) {
-        const sel   = selections[itemId];
-        const state = simStates[itemId];
-        if (!state?.result) continue;
-        await api.approveProject({
-          plate_code:    state.result.plate_code,
-          plate_name:    state.result.plate_name,
-          gasket_code:   state.result.gasket_code,
-          quantity:      state.result.quantity,
-          path_name:     sel.path,
-          plant:         sel.pathObj.plant,
-          mode:          sel.pathObj.mode,
-          total_cost_eur: sel.pathObj.total_cost_eur,
-          delivery_days: sel.pathObj.delivery_days,
-          carbon_score:  sel.pathObj.carbon_score,
-        });
+
+        setOrderPlaced(true);
+      } catch (e) {
+        console.error("Order failed:", e);
+        setOrderError(String(e));
+      } finally {
+        setOrderLoading(false);
       }
-      setOrderPlaced(true);
-    } catch (e) {
-      console.error("Order failed:", e);
-      setOrderError(String(e));
-    } finally {
-      setOrderLoading(false);
-    }
-
-
   };
 
   const totalCost      = Object.values(selections).reduce((s, a) => s + a.cost, 0);

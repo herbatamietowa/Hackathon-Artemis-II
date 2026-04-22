@@ -14,7 +14,7 @@ from .schemas import (
     AnalyzeResponse,
     ApproveProjectRequest,
     CompatibleGasketsResponse,
-    ConfirmProjectRequest,
+    ProjectCreate,
     DebateProjectPathRequest,
     DebateProjectPathResponse,
     DeliveryDestinationModel,

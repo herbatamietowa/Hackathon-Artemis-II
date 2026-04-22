@@ -1,4 +1,4 @@
-import type { AnalyzeRequest, AnalyzeResponse, ApproveProjectRequest, CompatibleGasketsResult, ConfirmProjectRequest, DebateProjectPathRequest, DebateProjectPathResponse, DeliveryDestination, DisasterRequest, DisasterResult, GCIRequest, GCIResponse, MaterialOption, ProjectArchitectRequest, ProjectArchitectResponse, ProjectSimulationRequest, ProjectSimulationResult, RawMaterialItem, RawMaterialOrderRequest, SourcingRequest, SourcingResponse, UploadDataResponse } from '../types';
+import type { AnalyzeRequest, AnalyzeResponse, ApproveProjectRequest, CompatibleGasketsResult, ProjectCreate, DebateProjectPathRequest, DebateProjectPathResponse, DeliveryDestination, DisasterRequest, DisasterResult, GCIRequest, GCIResponse, MaterialOption, ProjectArchitectRequest, ProjectArchitectResponse, ProjectSimulationRequest, ProjectSimulationResult, RawMaterialItem, RawMaterialOrderRequest, SourcingRequest, SourcingResponse, UploadDataResponse } from '../types';
 
 const BASE = '/api';
 
