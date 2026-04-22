@@ -440,6 +440,9 @@ class RawMaterialOrderRequest(BaseModel):
     factory: str
     deadline: Optional[str] = None
 
+class RawMaterialOrderResponse(BaseModel):
+    order_id: str
+
 
 class UploadDataResponse(BaseModel):
     sheets_merged: list[str]

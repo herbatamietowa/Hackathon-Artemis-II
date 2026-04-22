@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import re
 from datetime import date
+import uuid
 
 import pandas as pd
 from fastapi import APIRouter, File, HTTPException, UploadFile, Depends
@@ -32,6 +33,7 @@ from .schemas import (
     RawMaterialItem,
     RawMaterialListResponse,
     RawMaterialOrderRequest,
+    RawMaterialOrderResponse,
     RawMaterialStatusModel,
     ReallocationSuggestion,
     ScenarioListResponse,
@@ -48,7 +50,7 @@ from ..data.loader import load_workbook
 from ..engine.capacity import compute_capacity_plan
 from sqlalchemy.orm import Session 
 from ..data.database import SessionLocal, get_db
-from ..data.models import Project, ProjectItem
+from ..data.models import Project, ProjectItem, RawMaterialOrder
 
 logger = logging.getLogger(__name__)
 
@@ -452,32 +454,27 @@ def list_raw_materials() -> RawMaterialListResponse:
         return RawMaterialListResponse(materials=[])
 
 
-@router.post("/order-raw-material")
-def order_raw_material(req: RawMaterialOrderRequest) -> dict:
-    import csv
-    from datetime import datetime
-    log_path = DATA_PATH.parent / "raw_material_orders.csv"
-    order_id = f"RM-{int(datetime.utcnow().timestamp())}"
-    row = {
-        "order_id": order_id,
-        "timestamp": datetime.utcnow().isoformat(),
-        "material_code": req.material_code,
-        "material_name": req.material_name,
-        "unit": req.unit,
-        "quantity": req.quantity,
-        "factory": req.factory,
-        "deadline": req.deadline or "",
-    }
+@router.post("/order-raw-material", response_model=RawMaterialOrderResponse)
+def order_raw_material(req: RawMaterialOrderRequest, db: Session = Depends(get_db)):
     try:
-        write_header = not log_path.exists()
-        with open(log_path, "a", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=list(row.keys()))
-            if write_header:
-                writer.writeheader()
-            writer.writerow(row)
+        order_id = f"RM-{uuid.uuid4().hex[:8].upper()}"
+        new_order = RawMaterialOrder(
+            order_id = order_id,
+            material_code = req.material_code,
+            material_name = req.material_name,
+            unit = req.unit,
+            quantity = req.quantity,
+            factory = req.factory,
+            deadline = req.deadline,
+            ordered_at = date.today().isoformat(),
+        )
+        db.add(new_order)
+        db.commit()
+        return RawMaterialOrderResponse(order_id=order_id)
     except Exception as exc:
+        db.rollback()
         logger.warning("Could not write raw material order: %s", exc)
-    return {"status": "ordered", "order_id": order_id}
+        raise HTTPException(status_code=500, detail=str(exc))
 
 
 @router.post("/debate-project-path", response_model=DebateProjectPathResponse)

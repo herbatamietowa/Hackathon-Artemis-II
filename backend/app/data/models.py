@@ -20,8 +20,6 @@ class ProjectItem(Base):
 
     project = relationship("Project", back_populates="items")
 
-
-
 class Project(Base):
     __tablename__ = 'projects'
 
@@ -31,3 +29,15 @@ class Project(Base):
     created_at = Column(String) # or dateTime
 
     items = relationship("ProjectItem", back_populates="project")
+
+class RawMaterialOrder(Base):
+    __tablename__ = "raw_material_orders"
+    id = Column(Integer, primary_key=True, index=True)
+    order_id = Column(String, unique=True)
+    material_code = Column(String)
+    material_name = Column(String)
+    unit = Column(String)
+    quantity = Column(Float)
+    factory = Column(String)
+    deadline = Column(String, nullable=True)
+    ordered_at = Column(String)
