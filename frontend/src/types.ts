@@ -177,6 +177,18 @@ export interface MaterialOption {
   name: string;
 }
 
+export interface TimelinePoint {
+  period: string;
+  capacity_utilization: number;
+  available_hours: number;
+  demanded_hours: number;
+  bottleneck_detected: boolean;
+}
+
+export interface TimelineResponse {
+  factory: string;
+  scenario: string;
+  points: TimelinePoint[];}
 export interface ScenarioPath {
   name: string;
   icon: string;
