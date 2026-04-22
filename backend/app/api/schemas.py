@@ -1,8 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass, field, asdict
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel
-from typing import List
 
 
 # ---------------------------------------------------------------------------
@@ -402,13 +401,17 @@ class UploadDataResponse(BaseModel):
 
 class ProjectItemCreate(BaseModel):
     item_type: str
-    material_id: str
+    final_code: str
+    description: str
     quantity: int 
     selected_path: str
     production_plant: str
     cost: float 
     delivery_days: int
+    est_co2: float
+    grid_co2: float
 
 class ProjectCreate(BaseModel):
     name: str 
+    status: str
     items: List[ProjectItemCreate]

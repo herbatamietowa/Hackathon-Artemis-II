@@ -220,14 +220,22 @@ export interface ConfirmProjectRequest {
 }
 
 export interface ProjectItemCreate {
-  material_id: string;
+  item_type:  'plate' | 'gasket';
+  final_code: string;
+  description: string;
   quantity: number;
+  selected_path: string;
+  production_plant: string;
+  delivery_days: number;
   cost: number;
+  est_co2: number;
+  grid_co2: number;
   deadline?: string;
 }
 
 export interface ProjectCreate {
   name: string;
+  status: string;
   items: ProjectItemCreate[];
 }
 
@@ -261,15 +269,28 @@ export interface SimulationPath {
 }
 
 export interface ProjectSimulationResult {
-  plate_code: string;
-  plate_name: string;
-  gasket_code: string | null;
-  gasket_name: string;
+  // Plate fields
+  plate_code?: string;
+  plate_name?: string;
+  plate_description?: string;
+  plate_final?: string;
+
+  // Gasket fields
+  gasket_code?: string;
+  gasket_name?: string;
+  gasket_description?: string;
+  gasket_final?: string;
+
+  // Shared
   quantity: number;
   feasible_plants: string[];
   raw_materials: RawMaterialStatus[];
   paths: SimulationPath[];
   warning: string | null;
+
+  // These belong on SimulationPath, not here — but keep if your backend sends them
+  est_co2?: number;
+  grid_co2?: number;
 }
 
 export interface ProjectSimulationRequest {

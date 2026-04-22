@@ -281,8 +281,9 @@ def project_architect(req: ProjectArchitectRequest) -> ProjectArchitectResponse:
 def confirm_project(req: ProjectCreate , db: Session = Depends(get_db)) -> dict:
     try:
         new_project = Project(
-            name =req.name,
-            created_at = date.today().isoformat()
+            name=req.name,
+            status=req.status,
+            created_at=date.today().isoformat()
         )
         db.add(new_project)
         db.flush() # to get new proj id
@@ -291,12 +292,15 @@ def confirm_project(req: ProjectCreate , db: Session = Depends(get_db)) -> dict:
             new_item = ProjectItem(
                 project_id = new_project.id,
                 item_type=item.item_type,
-                material_id = item.material_id,
+                final_code=item.final_code,
+                description=item.description,
                 quantity=item.quantity,
                 selected_path = item.selected_path,
                 production_plant = item.production_plant,
                 cost=item.cost,
-                delivery_days=item.delivery_days
+                delivery_days=item.delivery_days,
+                est_co2=item.est_co2,
+                grid_co2=item.grid_co2  
             )
             db.add(new_item)
         db.commit()
