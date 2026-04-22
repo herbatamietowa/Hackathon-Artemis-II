@@ -68,7 +68,7 @@ export function ProjectSimulator({ plates, gaskets }: { plates: MaterialOption[]
   const [delivery, setDelivery]           = useState<DeliveryDestination | null>(null);
 
   const timersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
-
+  const orderSummaryRef = useRef<HTMLDivElement>(null);
   // Load delivery destinations once
   useEffect(() => {
     api.deliveryDestinations().then(setDestinations).catch(() => {});
@@ -258,10 +258,19 @@ export function ProjectSimulator({ plates, gaskets }: { plates: MaterialOption[]
   const selectedCount  = Object.keys(selections).length;
   const allSelected    = items.length > 0 && selectedCount === items.length;
 
+  useEffect(() => {
+    if (allSelected && orderSummaryRef.current) {
+      orderSummaryRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [allSelected]);
+
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       {/* Hero */}
-      <div style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e40af 100%)', borderRadius: 12, padding: '20px 24px', color: '#fff' }}>
+      <div 
+      ref={orderSummaryRef}
+      style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e40af 100%)', borderRadius: 12, padding: '20px 24px', color: '#fff' }}>
         <h2 style={{ margin: '0 0 4px', fontSize: 20, fontWeight: 800 }}>New Project Simulation</h2>
         <p style={{ margin: 0, fontSize: 13, opacity: 0.8 }}>
           Select plates and gaskets, choose a delivery destination, and compare production paths with real inventory, shipping cost, and transport CO₂.
