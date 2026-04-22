@@ -219,6 +219,18 @@ export interface ConfirmProjectRequest {
   delivery_date: string;
 }
 
+export interface ProjectItemCreate {
+  material_id: string;
+  quantity: number;
+  cost: number;
+  deadline?: string;
+}
+
+export interface ProjectCreate {
+  name: string;
+  items: ProjectItemCreate[];
+}
+
 export interface RawMaterialStatus {
   code: string;
   name: string;

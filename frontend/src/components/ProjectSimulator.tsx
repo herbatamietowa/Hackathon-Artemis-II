@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api/client';
-import type { AgentTurn, DebateProjectPathResponse, MaterialOption, ProjectSimulationResult, RawMaterialStatus, SimulationPath } from '../types';
+import type { AgentTurn, DebateProjectPathResponse, MaterialOption, ProjectSimulationResult, RawMaterialStatus, SimulationPath, ProjectCreate } from '../types';
 
 const PLANT_INFO: Record<string, { short: string; flag: string; region: string }> = {
   NW01: { short: 'Midwest',    flag: '🇺🇸', region: 'N. America' },
@@ -131,30 +131,42 @@ export function ProjectSimulator({ plates, gaskets }: { plates: MaterialOption[]
   const handlePlaceOrder = async () => {
     setOrderLoading(true);
     setOrderError(null);
+
     try {
-      for (const itemId of Object.keys(selections)) {
+      const itemsToConfirm = Object.keys(selections).map((itemId) => {
         const sel = selections[itemId];
         const state = simStates[itemId];
-        if (!state?.result) continue;
-        await api.approveProject({
-          plate_code: state.result.plate_code,
-          plate_name: state.result.plate_name,
-          gasket_code: state.result.gasket_code,
+
+        if (!state?.result) return null;
+
+        return {
+          item_type: itemId, // e.g., "plate" or "gasket"
+          material_id: state.result.plate_code || state.result.gasket_code,
           quantity: state.result.quantity,
-          path_name: sel.path,
-          plant: sel.pathObj.plant,
-          mode: sel.pathObj.mode,
-          total_cost_eur: sel.pathObj.total_cost_eur,
-          delivery_days: sel.pathObj.delivery_days,
-          carbon_score: sel.pathObj.carbon_score,
-        });
-      }
+          cost: sel.pathObj.total_cost_eur,
+          selected_path: sel.path,
+          production_plant: sel.pathObj.plant,
+          delivery_days: sel.pathObj.delivery_days
+        };
+      }).filter((item): item is any => item !== null);
+
+      const projectData: ProjectCreate = {
+        name: `Project ${new Date().toISOString().split('T')[0]}`,
+        items: itemsToConfirm
+      };
+
+      const result = await api.confirmProject(projectData);
+      console.log("Database Save Successful:", result);
+
       setOrderPlaced(true);
     } catch (e) {
+      console.error("Order failed:", e);
       setOrderError(String(e));
     } finally {
       setOrderLoading(false);
     }
+
+
   };
 
   const totalCost = Object.values(selections).reduce((s, a) => s + a.cost, 0);
