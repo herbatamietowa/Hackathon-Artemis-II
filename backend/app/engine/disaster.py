@@ -43,9 +43,11 @@ def compute_disaster_impact(
     # ── 1. Demand displaced by the offline factory ────────────────────────────
     try:
         offline_result = compute_capacity_plan(offline_factory, scenario, period, data_path)
-        displaced_hours = offline_result.demanded_hours * duration_months
+        displaced_hours_per_period = offline_result.demanded_hours
+        displaced_hours = displaced_hours_per_period * duration_months
     except Exception as exc:
         logger.error("Could not compute offline factory demand: %s", exc)
+        displaced_hours_per_period = 0.0
         displaced_hours = 0.0
 
     # ── 2. Load reference data ────────────────────────────────────────────────
@@ -88,7 +90,7 @@ def compute_disaster_impact(
 
         headroom = max(0.0, alt_result.available_hours - alt_result.demanded_hours)
         proj_util = (
-            (alt_result.demanded_hours + displaced_hours) / alt_result.available_hours
+            (alt_result.demanded_hours + displaced_hours_per_period) / alt_result.available_hours
             if alt_result.available_hours > 0 else 9.99
         )
         coverage_pct = round(mat_count / total_offline_mats * 100, 1) if total_offline_mats else 0.0
@@ -132,7 +134,7 @@ def compute_disaster_impact(
             grid_intensity=round(alt_intensity, 2),
             carbon_delta_pct=round(carbon_delta_pct, 1),
         ))
-        total_absorbable += headroom
+        total_absorbable += headroom * duration_months
 
     # Sort: most headroom first
     alternatives.sort(key=lambda a: (-a.capacity_headroom_hours, -a.materials_coverable))

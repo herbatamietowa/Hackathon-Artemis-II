@@ -31,7 +31,14 @@ export const api = {
   gci: (req: GCIRequest) => post<GCIResponse>('/gci', req),
   disaster: (req: DisasterRequest) => post<DisasterResult>('/disaster', req),
   projectArchitect: (req: ProjectArchitectRequest) => post<ProjectArchitectResponse>('/project-architect', req),
-  confirmProject: (req: ConfirmProjectRequest) => post<{ status: string }>('/confirm-project', req),
+  confirmProject: async (project: ProjectCreate) => {
+    const response = await fetch('/api/confirm-project', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(project),
+    });
+    return response.json();
+  },
   plates: () => get<{ materials: MaterialOption[] }>('/plates'),
   gaskets: () => get<{ materials: MaterialOption[] }>('/gaskets'),
   rawMaterials: () => get<{ materials: RawMaterialItem[] }>('/raw-materials'),

@@ -5,7 +5,7 @@ import re
 from datetime import date
 
 import pandas as pd
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, File, HTTPException, UploadFile, Depends
 
 from .schemas import (
     AgentTurn,
@@ -40,10 +40,15 @@ from .schemas import (
     SourcingRequest,
     SourcingResponse,
     WCLoadModel,
+    ProjectCreate,
+    ProjectItemCreate,
 )
 from ..config import DATA_PATH, SCENARIOS
 from ..data.loader import load_workbook
 from ..engine.capacity import compute_capacity_plan
+from sqlalchemy.orm import Session 
+from ..data.database import SessionLocal, get_db
+from ..data.models import Project, ProjectItem
 
 logger = logging.getLogger(__name__)
 
@@ -276,31 +281,37 @@ def project_architect(req: ProjectArchitectRequest) -> ProjectArchitectResponse:
 
 
 @router.post("/confirm-project")
-def confirm_project(req: ConfirmProjectRequest) -> dict:
-    import csv
-    from datetime import datetime
-    log_path = DATA_PATH.parent / "confirmed_projects.csv"
-    row = {
-        "timestamp": datetime.utcnow().isoformat(),
-        "material_code": req.material_code,
-        "material_name": req.material_name,
-        "quantity": req.quantity,
-        "deadline": req.deadline or "",
-        "chosen_path": req.chosen_path,
-        "chosen_plant": req.chosen_plant,
-        "cost_eur": req.cost_eur,
-        "delivery_date": req.delivery_date,
-    }
+def confirm_project(req: ProjectCreate , db: Session = Depends(get_db)) -> dict:
     try:
-        write_header = not log_path.exists()
-        with open(log_path, "a", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=list(row.keys()))
-            if write_header:
-                writer.writeheader()
-            writer.writerow(row)
+        new_project = Project(
+            name=req.name,
+            status=req.status,
+            created_at=date.today().isoformat()
+        )
+        db.add(new_project)
+        db.flush() # to get new proj id
+
+        for item in req.items:
+            new_item = ProjectItem(
+                project_id = new_project.id,
+                item_type=item.item_type,
+                final_code=item.final_code,
+                description=item.description,
+                quantity=item.quantity,
+                selected_path = item.selected_path,
+                production_plant = item.production_plant,
+                cost=item.cost,
+                delivery_days=item.delivery_days,
+                est_co2=item.est_co2,
+                grid_co2=item.grid_co2  
+            )
+            db.add(new_item)
+        db.commit()
+        return {"status": "saved", "project_id": new_project.id}
     except Exception as exc:
-        logger.warning("Could not write project log: %s", exc)
-    return {"status": "saved", "project": row}
+        db.rollback()
+        logger.error("Database save failed: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc))
 
 
 @router.get("/plates", response_model=MaterialListResponse)

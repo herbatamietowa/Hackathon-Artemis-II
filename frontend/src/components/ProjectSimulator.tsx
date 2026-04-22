@@ -10,6 +10,8 @@ import type {
   ProjectSimulationResult,
   RawMaterialStatus,
   SimulationPath,
+  ProjectCreate, 
+  ProjectItemCreate,
 } from '../types';
 
 const PLANT_INFO: Record<string, { short: string; flag: string; region: string }> = {
@@ -43,7 +45,7 @@ const TRANSPORT_ICON: Record<string, string> = {
 
 type ProjectItem = { id: string; type: 'plate' | 'gasket'; code: string; qty: number; pairedGasketCode?: string };
 type ItemSimState = { loading: boolean; result: ProjectSimulationResult | null; error: string | null };
-type Selection = { path: string; cost: number; co2_kg: number; delivery_days: number; pathObj: SimulationPath };
+type Selection = { item_type: string; path: string; cost: number; co2_kg: number; delivery_days: number; pathObj: SimulationPath };
 type DebateState = { loading: boolean; result: DebateProjectPathResponse | null; error: string | null; userArg: string; showFull: boolean };
 type CompatState = { loading: boolean; result: CompatibleGasketsResult | null; shown: boolean };
 
@@ -51,6 +53,7 @@ let _id = 0;
 const genId = () => String(++_id);
 
 export function ProjectSimulator({ plates, gaskets }: { plates: MaterialOption[]; gaskets: MaterialOption[] }) {
+  console.log('🔥 NEW VERSION LOADED');
   const [items, setItems] = useState<ProjectItem[]>([{ id: genId(), type: 'plate', code: '', qty: 100 }]);
   const [simStates, setSimStates]       = useState<Record<string, ItemSimState>>({});
   const [selections, setSelections]     = useState<Record<string, Selection>>({});
@@ -189,15 +192,57 @@ export function ProjectSimulator({ plates, gaskets }: { plates: MaterialOption[]
     }
   };
 
-  const handleSelectPath = (itemId: string, path: SimulationPath) => {
+  const handleSelectPath = (itemId: string, path: SimulationPath, itemType: string) => {
     setSelections(prev => ({
       ...prev,
-      [itemId]: { path: path.name, cost: path.total_cost_eur, co2_kg: path.estimated_co2_kg, delivery_days: path.delivery_days, pathObj: path },
+      [itemId]: { item_type: itemType, path: path.name, cost: path.total_cost_eur, co2_kg: path.estimated_co2_kg, delivery_days: path.delivery_days, pathObj: path },
     }));
     setOrderPlaced(false);
   };
 
   const handlePlaceOrder = async () => {
+    setOrderLoading(true);
+    setOrderError(null);
+
+    console.log('--- DEBUG ---');
+    console.log('items:', items.map(i => ({ id: i.id, type: i.type })));
+    console.log('selection keys:', Object.keys(selections));
+    console.log('first sel:', Object.values(selections)[0]);
+
+    try {
+      const itemsToConfirm = items.map((item) => {
+        const sel = selections[item.id];
+        const state = simStates[item.id];
+
+        console.log(`item ${item.id}: type=${item.type}, sel=`, sel, 'pathObj=', sel?.pathObj);
+      
+        if (!sel || !state?.result) return null;
+
+        return {
+          item_type: item.type,
+          final_code: state.result.plate_code ?? state.result.gasket_code ?? '',
+          description: state.result.plate_name ?? state.result.gasket_name ??  state.result.gasket_description ??  state.result.plate_description,
+          quantity: state.result.quantity,
+          selected_path: sel.path,
+          production_plant: sel.pathObj.plant,
+          cost: sel.pathObj.total_cost_eur,
+          delivery_days: sel.pathObj.delivery_days,
+          est_co2: sel.pathObj.estimated_co2_kg,
+          grid_co2: sel.pathObj.grid_intensity,
+        };
+      }).filter((item): item is ProjectItemCreate => item !== null);
+
+      const projectData: ProjectCreate = {
+        name: `Project-${new Date().toISOString().split('T')[0]}`,
+        status: "Not approved",
+        items: itemsToConfirm,
+      };
+
+       console.log("Sending to backend:", JSON.stringify(projectData, null, 2));
+
+      const result = await api.confirmProject(projectData);
+      console.log("Database Save Successful:", result);
+
     setOrderLoading(true); setOrderError(null);
     try {
       for (const itemId of Object.keys(selections)) {
@@ -219,10 +264,13 @@ export function ProjectSimulator({ plates, gaskets }: { plates: MaterialOption[]
       }
       setOrderPlaced(true);
     } catch (e) {
+      console.error("Order failed:", e);
       setOrderError(String(e));
     } finally {
       setOrderLoading(false);
     }
+
+
   };
 
   const totalCost      = Object.values(selections).reduce((s, a) => s + a.cost, 0);
@@ -530,8 +578,8 @@ export function ProjectSimulator({ plates, gaskets }: { plates: MaterialOption[]
                       <PathCard
                         key={path.name}
                         path={path}
+                        onSelect={() => handleSelectPath(item.id, path, item.type)}
                         quantity={item.qty}
-                        onSelect={() => handleSelectPath(item.id, path)}
                         isSelected={sel?.path === path.name}
                         anySelected={!!sel}
                       />
@@ -576,7 +624,7 @@ export function ProjectSimulator({ plates, gaskets }: { plates: MaterialOption[]
                           <ConsensusPathCard
                             path={ds.result.agreed_path!}
                             status={ds.result.status}
-                            onApprove={() => handleSelectPath(item.id, ds.result!.agreed_path!)}
+                            onApprove={() => handleSelectPath(item.id, ds.result!.agreed_path!, item.type)}
                             isApproved={sel?.path === ds.result.agreed_path?.name || sel?.path === 'The AI Consensus'}
                             anyApproved={!!sel}
                           />
@@ -604,23 +652,33 @@ export function ProjectSimulator({ plates, gaskets }: { plates: MaterialOption[]
 // ── BOM Summary ───────────────────────────────────────────────────────────────
 
 function BOMSummary({ result }: { result: ProjectSimulationResult }) {
+  const mainCode = result.plate_code ?? result.gasket_code;
+  const mainName = result.plate_name ?? result.gasket_name;
   return (
     <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: '14px 18px' }}>
       <div style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 10 }}>BOM Explosion</div>
       <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'flex-start' }}>
         <div>
-          <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Plate (Header)</div>
-          <div style={{ fontWeight: 700, fontSize: 13, color: '#0f172a' }}>{result.plate_code}</div>
-          <div style={{ fontSize: 11, color: '#64748b' }}>{result.plate_name}</div>
-          <div style={{ margin: '6px 0', fontSize: 14, color: '#94a3b8' }}>↓</div>
-          <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Paired Gasket</div>
-          {result.gasket_code ? (
+          <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>
+            {result.plate_code ? 'Plate (Header)' : 'Gasket (Header)'}
+          </div>
+          <div style={{ fontWeight: 700, fontSize: 13, color: '#0f172a' }}>{mainCode}</div>
+          <div style={{ fontSize: 11, color: '#64748b' }}>{mainName}</div>
+
+          {/* Only show the arrow and paired gasket if it's a plate simulation */}
+          {result.plate_code && (
             <>
-              <div style={{ fontWeight: 700, fontSize: 13, color: '#0f172a' }}>{result.gasket_code}</div>
-              <div style={{ fontSize: 11, color: '#64748b' }}>{result.gasket_name}</div>
+              <div style={{ margin: '6px 0', fontSize: 14, color: '#94a3b8' }}>↓</div>
+              <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Paired Gasket</div>
+              {result.gasket_code ? (
+                <>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: '#0f172a' }}>{result.gasket_code}</div>
+                  <div style={{ fontSize: 11, color: '#64748b' }}>{result.gasket_name ?? result.gasket_description}</div>
+                </>
+              ) : (
+                <div style={{ fontSize: 12, color: '#f59e0b', fontWeight: 600 }}>No gasket paired</div>
+              )}
             </>
-          ) : (
-            <div style={{ fontSize: 12, color: '#f59e0b', fontWeight: 600 }}>Not identified in BOM</div>
           )}
         </div>
 

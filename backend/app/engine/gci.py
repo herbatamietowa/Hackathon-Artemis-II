@@ -138,21 +138,14 @@ def compute_gci(
     # Plant metadata (one row per plant)
     plant_meta = df25[["Plant", "Plant name"]].drop_duplicates("Plant").set_index("Plant")
 
-    # Material master data
+    # Material master data — material-level fields only
     mat_rows = df23[df23["Sap code"] == material_code]
     if mat_rows.empty:
-        base_cost = 50.0
-        transport_lt = 14.0
         prod_lt_days = 14
         mat_name = material_code
     else:
-        base_cost = float(mat_rows["Standard Cost in EUR"].median())
-        transport_lt = float(mat_rows["Transportation Lanes Lead Time (CD)"].median())
         prod_lt_days = int(float(mat_rows["Production LT Weeks"].median()) * 7)
         mat_name = str(mat_rows["Description"].iloc[0])
-
-    # Distance proxy: transport LT × 50 km/day (average logistics speed from SAP data)
-    distance_km = transport_lt * 50
 
     # Scrap factor from BOM (3_2) — higher = more carbon per finished unit
     scrap_rows = df32[df32["Header Material code"] == material_code]
@@ -170,6 +163,18 @@ def compute_gci(
         intensity = _region_intensity(pname)
         dom_size = _dominant_size(df25, plant)
         size_factor = _SIZE_ENERGY.get(dom_size, 1.5)
+
+        # Plant-specific cost and transport LT
+        plant_mat_rows = mat_rows[mat_rows["G35 - Plant"] == plant]
+        if plant_mat_rows.empty:
+            base_cost = 50.0
+            transport_lt = 14.0
+        else:
+            base_cost = float(plant_mat_rows["Standard Cost in EUR"].median())
+            transport_lt = float(plant_mat_rows["Transportation Lanes Lead Time (CD)"].median())
+
+        # Distance proxy: transport LT × 50 km/day (average logistics speed from SAP data)
+        distance_km = transport_lt * 50
 
         # Carbon: production component — grid intensity × press size × scrap
         carbon_production = intensity * size_factor * scrap_factor

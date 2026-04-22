@@ -12,6 +12,8 @@ services:
       DATA_PATH: /data/hackathon_dataset.xlsx
     volumes:
       - ./data:/data:ro
+    depends_on:
+      - db
 
   frontend:
     build:
@@ -21,3 +23,20 @@ services:
       - "5173:80"
     depends_on:
       - backend
+
+
+  db: 
+    image: postgres:15
+    container_name: cookbook
+    restart: always
+    environment: 
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: simul8_db
+    ports: 
+      - "5432:5432"
+    volumes: 
+      - postgres_data:/var/lib/postgresql/data
+  
+volumes:
+  postgres_data:

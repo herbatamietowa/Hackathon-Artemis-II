@@ -9,6 +9,7 @@ from .api.routes import router
 from .agents.contracts import KNOWN_WC_CODES
 from .config import DATA_PATH
 from .data.loader import load_workbook
+from .data.database import init_db
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -28,6 +29,7 @@ app.include_router(router)
 @app.on_event("startup")
 async def startup() -> None:
     """Warm the workbook cache and populate KNOWN_WC_CODES."""
+    init_db()
     try:
         wb = load_workbook(DATA_PATH)
         sheets = {k.strip(): v for k, v in wb.items()}

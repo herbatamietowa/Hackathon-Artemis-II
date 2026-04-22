@@ -1,6 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass, field, asdict
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel
 
 
@@ -291,17 +291,6 @@ class ProjectArchitectResponse(BaseModel):
     paths: list[ScenarioPathModel]
 
 
-class ConfirmProjectRequest(BaseModel):
-    material_code: str
-    material_name: str
-    quantity: float
-    deadline: Optional[str] = None
-    chosen_path: str
-    chosen_plant: str
-    cost_eur: float
-    delivery_date: str
-
-
 # ---------------------------------------------------------------------------
 # Project Simulation schemas (BOM explosion)
 # ---------------------------------------------------------------------------
@@ -455,3 +444,20 @@ class RawMaterialOrderRequest(BaseModel):
 class UploadDataResponse(BaseModel):
     sheets_merged: list[str]
     rows_added: dict[str, int]
+
+class ProjectItemCreate(BaseModel):
+    item_type: str
+    final_code: str
+    description: str
+    quantity: int 
+    selected_path: str
+    production_plant: str
+    cost: float 
+    delivery_days: int
+    est_co2: float
+    grid_co2: float
+
+class ProjectCreate(BaseModel):
+    name: str 
+    status: str
+    items: List[ProjectItemCreate]
