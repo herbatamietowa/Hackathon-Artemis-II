@@ -34,7 +34,7 @@ app.include_router(router)
 @app.on_event("startup")
 async def startup() -> None:
     """Warm the workbook cache and populate KNOWN_WC_CODES."""
-    init_db()
+    await init_db()
     try:
         wb = load_workbook(DATA_PATH)
         sheets = {k.strip(): v for k, v in wb.items()}

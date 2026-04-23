@@ -50,8 +50,11 @@ from ..config import DATA_PATH, SCENARIOS
 from ..data.loader import load_workbook
 from ..engine.capacity import compute_capacity_plan
 from sqlalchemy.orm import Session 
-from ..data.database import SessionLocal, get_db
-from ..data.models import Project, ProjectItem, RawMaterialOrder
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from ..data.database import get_db
+from ..data.models import Project, ProjectItem, RawMaterialOrder, WorkCenterCapacity, WCScheduleLimits, ToolMaterialMaster, SAPMasterData
 
 logger = logging.getLogger(__name__)
 
@@ -604,11 +607,98 @@ def approve_project(req: ApproveProjectRequest) -> dict:
     return {"status": "approved", "record": record}
 
 
+async def _handle_wc_capacity(df: pd.DataFrame, db: AsyncSession) -> int:
+    week_cols = [c for c in df.columns if str(c).startswith("Week")]
+    long = df.melt(
+        id_vars=["Work center code", "Measure"],
+        value_vars=week_cols,
+        var_name="week_label",
+        value_name="value",
+    ).rename(columns={"Work center code": "work_center_code", "Measure": "measure"})
+    long = long.where(pd.notna(long), None)
+    records = long.to_dict(orient="records")
+    if not records:
+        return 0
+    stmt = pg_insert(WorkCenterCapacity).values(records)
+    stmt = stmt.on_conflict_do_update(
+        constraint="uq_wc_capacity",
+        set_={"value": stmt.excluded.value},
+    )
+    await db.execute(stmt)
+    return len(records)
+
+
+async def _handle_wc_schedule(df: pd.DataFrame, db: AsyncSession) -> int:
+    df = df.rename(columns={
+        "Plant": "plant", "Plant name": "plant_name",
+        "WC-Description": "wc_description", "OEE (in %)": "oee_pct", "AP Limit": "ap_limit",
+    })
+    df = df.where(pd.notna(df), None)
+    records = df.to_dict(orient="records")
+    if not records:
+        return 0
+    stmt = pg_insert(WCScheduleLimits).values(records)
+    stmt = stmt.on_conflict_do_update(
+        constraint="uq_wc_schedule",
+        set_={"plant_name": stmt.excluded.plant_name, "oee_pct": stmt.excluded.oee_pct, "ap_limit": stmt.excluded.ap_limit},
+    )
+    await db.execute(stmt)
+    return len(records)
+
+async def _handle_tool_material(df: pd.DataFrame, db: AsyncSession) -> int:
+    df = df.rename(columns={
+        "Sap code": "sap_code", "Plant": "plant", "Material Status": "material_status",
+        "Work center": "work_center", "Cycle time": "cycle_time",
+        "Connector Plant_Material nr": "connector_plant_material_nr",
+        "Cycle times Standard Value (Machine)": "cycle_time_standard", "Rev no": "rev_no",
+    })
+    df = df.where(pd.notna(df), None)
+    records = df.to_dict(orient="records")
+    if not records:
+        return 0
+    stmt = pg_insert(ToolMaterialMaster).values(records)
+    stmt = stmt.on_conflict_do_update(
+        constraint="uq_tool_material",
+        set_={
+            "material_status": stmt.excluded.material_status,
+            "work_center": stmt.excluded.work_center,
+            "cycle_time": stmt.excluded.cycle_time,
+            "cycle_time_standard": stmt.excluded.cycle_time_standard,
+            "rev_no": stmt.excluded.rev_no,
+        },
+    )
+    await db.execute(stmt)
+    return len(records)
+
+async def _handle_sap_master(df: pd.DataFrame, db: AsyncSession) -> int:
+    df = df.rename(columns={
+        "Sap code": "sap_code", "Description": "description",
+        "Standard Cost in EUR": "standard_cost_eur", "G35 - Plant": "plant",
+    })
+    df = df.where(pd.notna(df), None)
+    records = df.to_dict(orient="records")
+    if not records:
+        return 0
+    stmt = pg_insert(SAPMasterData).values(records)
+    stmt = stmt.on_conflict_do_update(
+        constraint="uq_sap_master",
+        set_={"description": stmt.excluded.description, "standard_cost_eur": stmt.excluded.standard_cost_eur},
+    )
+    await db.execute(stmt)
+    return len(records)
+
+SHEET_HANDLERS = {
+    "2_1 Work Center Capacity Weekly": _handle_wc_capacity,
+    "2_5 WC Schedule_limits":          _handle_wc_schedule,
+    "2_6 Tool_material nr master":     _handle_tool_material,
+    "2_3 SAP MasterData":              _handle_sap_master,
+}
+
 @router.post("/upload-data", response_model=UploadDataResponse)
-async def upload_data(file: UploadFile = File(...)) -> UploadDataResponse:
-    """Merge an uploaded .xlsx into the in-memory dataset cache — no disk I/O."""
+async def upload_data(
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db)) -> UploadDataResponse:
     import io
-    from ..data.loader import SHEET_NAMES, load_workbook, set_workbook_override
 
     contents = await file.read()
     try:
@@ -617,29 +707,18 @@ async def upload_data(file: UploadFile = File(...)) -> UploadDataResponse:
         raise HTTPException(status_code=400, detail=f"Cannot read uploaded file: {exc}")
 
     uploaded_norm = {k.strip(): v for k, v in uploaded.items()}
-    known = {s.strip() for s in SHEET_NAMES}
+    rows_added: dict[str, int] = {}
 
-    matches: dict[str, pd.DataFrame] = {}
-    for up_name, up_df in uploaded_norm.items():
-        target = next((k for k in known if up_name == k or up_name[:3] == k[:3]), None)
-        if target is not None:
-            matches[target] = up_df
+    for sheet_name, handler in SHEET_HANDLERS.items():
+        df = uploaded_norm.get(sheet_name)
+        if df is not None:
+            rows_added[sheet_name] = await handler(df, db)
 
-    if not matches:
+    if not rows_added:
         raise HTTPException(status_code=400, detail="No sheets matched known dataset sheets. Check your file.")
 
-    # Merge into the current in-memory cache — never touches disk
-    current = load_workbook(DATA_PATH)
-    merged = dict(current)
-    rows_added: dict[str, int] = {}
-    for target, up_df in matches.items():
-        existing = current.get(target, pd.DataFrame())
-        merged[target] = pd.concat([existing, up_df], ignore_index=True) if not existing.empty else up_df
-        rows_added[target] = len(up_df)
-
-    set_workbook_override(merged)
+    await db.commit()
     return UploadDataResponse(sheets_merged=list(rows_added.keys()), rows_added=rows_added)
-
 
 @router.get("/sample-factory-data")
 def sample_factory_data():
