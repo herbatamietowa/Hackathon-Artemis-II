@@ -49,7 +49,6 @@ from .schemas import (
 from ..config import DATA_PATH, SCENARIOS
 from ..data.loader import load_workbook
 from ..engine.capacity import compute_capacity_plan
-from sqlalchemy.orm import Session 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -342,7 +341,7 @@ def project_architect(req: ProjectArchitectRequest) -> ProjectArchitectResponse:
 
 
 @router.post("/confirm-project")
-def confirm_project(req: ProjectCreate , db: Session = Depends(get_db)) -> dict:
+async def confirm_project(req: ProjectCreate , db: AsyncSession = Depends(get_db)) -> dict:
     try:
         new_project = Project(
             name=req.name,
@@ -350,7 +349,7 @@ def confirm_project(req: ProjectCreate , db: Session = Depends(get_db)) -> dict:
             created_at=date.today().isoformat()
         )
         db.add(new_project)
-        db.flush() # to get new proj id
+        await db.flush() # to get new proj id
 
         for item in req.items:
             new_item = ProjectItem(
@@ -367,10 +366,10 @@ def confirm_project(req: ProjectCreate , db: Session = Depends(get_db)) -> dict:
                 grid_co2=item.grid_co2  
             )
             db.add(new_item)
-        db.commit()
+        await db.commit()
         return {"status": "saved", "project_id": new_project.id}
     except Exception as exc:
-        db.rollback()
+        await db.rollback()
         logger.error("Database save failed: %s", exc)
         raise HTTPException(status_code=500, detail=str(exc))
 
@@ -514,7 +513,7 @@ def list_raw_materials() -> RawMaterialListResponse:
 
 
 @router.post("/order-raw-material", response_model=RawMaterialOrderResponse)
-def order_raw_material(req: RawMaterialOrderRequest, db: Session = Depends(get_db)):
+async def order_raw_material(req: RawMaterialOrderRequest, db: AsyncSession = Depends(get_db)):
     try:
         order_id = f"RM-{uuid.uuid4().hex[:8].upper()}"
         new_order = RawMaterialOrder(
@@ -528,10 +527,10 @@ def order_raw_material(req: RawMaterialOrderRequest, db: Session = Depends(get_d
             ordered_at = date.today().isoformat(),
         )
         db.add(new_order)
-        db.commit()
+        await db.commit()
         return RawMaterialOrderResponse(order_id=order_id)
     except Exception as exc:
-        db.rollback()
+        await db.rollback()
         logger.warning("Could not write raw material order: %s", exc)
         raise HTTPException(status_code=500, detail=str(exc))
 
