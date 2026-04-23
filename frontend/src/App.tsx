@@ -13,7 +13,8 @@ import { ProjectSimulator } from './components/ProjectSimulator';
 import { ReallocationBanner } from './components/ReallocationBanner';
 import { ScenarioSelector } from './components/ScenarioSelector';
 import { SourcingPanel } from './components/SourcingPanel';
-import type { AnalyzeResponse, MaterialOption, RawMaterialItem, SourcingResponse } from './types';
+import { TimelineChart } from './components/TimelineChart';
+import type { AnalyzeResponse, MaterialOption, RawMaterialItem, SourcingResponse, TimelinePoint } from './types';
 // RawMaterialItem used in useState generic below
 
 type Tab = 'project' | 'order' | 'pulse' | 'stream' | 'disaster' | 'import';
@@ -57,6 +58,9 @@ export default function App() {
   const [sourcingResult, setSourcingResult] = useState<SourcingResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [offline, setOffline] = useState(false);
+  const [timelinePoints, setTimelinePoints] = useState<TimelinePoint[]>([]);
+  const [loadingTimeline, setLoadingTimeline] = useState(false);
+  const [timelineError, setTimelineError] = useState(false);
   const [bottleneckCache, setBottleneckCache] = useState<Record<string, boolean>>({});
   const [reallocationApplied, setReallocationApplied] = useState(false);
   const [simulatedCapacityResult, setSimulatedCapacityResult] = useState<AnalyzeResponse | null>(null);
@@ -68,6 +72,15 @@ export default function App() {
     api.gaskets().then(r => setGaskets(r.materials)).catch(() => {});
     api.rawMaterials().then(r => setRawMaterials(r.materials)).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    setLoadingTimeline(true);
+    setTimelineError(false);
+    api.timeline(factory, scenario)
+      .then(r => setTimelinePoints(r.points))
+      .catch(() => { setTimelinePoints([]); setTimelineError(true); })
+      .finally(() => setLoadingTimeline(false));
+  }, [factory, scenario]);
 
   // Auto-run capacity analysis when Factory Pulse tab is active
   useEffect(() => {
@@ -244,6 +257,14 @@ export default function App() {
         </div>
       )}
 
+      {/* Timeline — loads automatically on factory/scenario change, always shown on Factory Pulse tab */}
+      {tab === 'pulse' && (
+        <div className="print-section" style={{ marginBottom: 16 }}>
+          <TimelineChart points={timelinePoints} loading={loadingTimeline} error={timelineError} />
+        </div>
+      )}
+
+      {/* Capacity section — visible on screen only when tab=pulse; always visible in print */}
       {/* New Project */}
       {tab === 'project' && <ProjectSimulator plates={plates} gaskets={gaskets} />}
 
@@ -406,4 +427,4 @@ const printBtnStyle: React.CSSProperties = {
   padding: '6px 14px', borderRadius: 6, border: '1px solid #d1d5db',
   background: '#fff', color: '#374151', fontSize: 13, fontWeight: 500,
   cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
-};
+}

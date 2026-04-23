@@ -6,6 +6,7 @@ from datetime import date
 import uuid
 
 import pandas as pd
+from pydantic import BaseModel
 from fastapi import APIRouter, File, HTTPException, UploadFile, Depends
 
 from .schemas import (
@@ -57,6 +58,20 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api")
 
 
+class TimelinePoint(BaseModel):
+    period: str
+    capacity_utilization: float
+    available_hours: float
+    demanded_hours: float
+    bottleneck_detected: bool
+
+
+class TimelineResponse(BaseModel):
+    factory: str
+    scenario: str
+    points: list[TimelinePoint]
+
+
 @router.get("/health")
 def health() -> dict:
     return {"status": "ok"}
@@ -79,6 +94,47 @@ def list_factories() -> FactoryListResponse:
     except Exception as exc:
         logger.warning("Could not derive factory list from data: %s", exc)
     return FactoryListResponse(factories=["NW01", "NW03"])
+
+
+DATA_END_YEAR = 2027
+DATA_END_MONTH = 12
+
+
+@router.get("/timeline", response_model=TimelineResponse)
+def timeline(
+    factory: str = "NW01",
+    scenario: str = "probability_weighted",
+) -> TimelineResponse:
+    """Return capacity utilization from today until end of available data."""
+    if scenario not in SCENARIOS:
+        raise HTTPException(status_code=400, detail=f"Unknown scenario: {scenario}")
+
+    today = date.today()
+    periods: list[str] = []
+    m, y = today.month, today.year
+    while True:
+        m += 1
+        if m > 12:
+            m, y = 1, y + 1
+        if y > DATA_END_YEAR or (y == DATA_END_YEAR and m > DATA_END_MONTH):
+            break
+        periods.append(f"{m} {y}")
+
+    points: list[TimelinePoint] = []
+    for period in periods:
+        try:
+            r = compute_capacity_plan(factory, scenario, period, DATA_PATH)
+            points.append(TimelinePoint(
+                period=period,
+                capacity_utilization=r.capacity_utilization,
+                available_hours=r.available_hours,
+                demanded_hours=r.demanded_hours,
+                bottleneck_detected=r.bottleneck_detected,
+            ))
+        except Exception as exc:
+            logger.warning("Timeline skipping period %s: %s", period, exc)
+
+    return TimelineResponse(factory=factory, scenario=scenario, points=points)
 
 
 @router.post("/analyze", response_model=AnalyzeResponse)

@@ -1,6 +1,11 @@
 """FastAPI application entry point."""
 from __future__ import annotations
 import logging
+from pathlib import Path
+
+# Load .env BEFORE importing config (config reads os.getenv at import time)
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware

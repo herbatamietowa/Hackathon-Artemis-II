@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1776772101842,
-  "projectRoot": "c:\\Users\\Olga\\Documents\\uni\\semester4\\hackathon\\Hackathon-Artemis-II",
+  "lastScanned": 1776793698562,
+  "projectRoot": "c:\\Users\\natal\\Documents\\GitHub\\Hackathon-Artemis-II",
   "techStack": {
     "languages": [
       {
@@ -14,7 +14,7 @@
       }
     ],
     "frameworks": [],
-    "packageManager": "pip",
+    "packageManager": "npm",
     "runtime": null
   },
   "build": {
@@ -105,6 +105,13 @@
         "__init__.py"
       ]
     },
+    "backend\\scripts": {
+      "path": "backend\\scripts",
+      "purpose": "Build/utility scripts",
+      "fileCount": 0,
+      "lastAccessed": 1776793698531,
+      "keyFiles": []
+    },
     "backend\\tests": {
       "path": "backend\\tests",
       "purpose": "Test files",
@@ -138,8 +145,14 @@
   "hotPaths": [
     {
       "path": "backend\\app\\api\\routes.py",
-      "accessCount": 58,
-      "lastAccessed": 1776778639253,
+      "accessCount": 51,
+      "lastAccessed": 1776793885980,
+      "type": "file"
+    },
+    {
+      "path": "frontend\\src\\App.tsx",
+      "accessCount": 49,
+      "lastAccessed": 1776794140092,
       "type": "file"
     },
     {
@@ -185,9 +198,33 @@
       "type": "file"
     },
     {
+      "path": "frontend\\src\\api\\client.ts",
+      "accessCount": 18,
+      "lastAccessed": 1776793891460,
+      "type": "file"
+    },
+    {
+      "path": "backend\\app\\api\\schemas.py",
+      "accessCount": 17,
+      "lastAccessed": 1776581364569,
+      "type": "file"
+    },
+    {
       "path": "frontend\\src\\components\\SourcingPanel.tsx",
       "accessCount": 16,
       "lastAccessed": 1776562656348,
+      "type": "file"
+    },
+    {
+      "path": "frontend\\src\\types.ts",
+      "accessCount": 16,
+      "lastAccessed": 1776581385375,
+      "type": "file"
+    },
+    {
+      "path": "backend\\app\\engine\\project_simulation.py",
+      "accessCount": 15,
+      "lastAccessed": 1776584263039,
       "type": "file"
     },
     {
@@ -215,6 +252,18 @@
       "type": "file"
     },
     {
+      "path": "backend\\app\\engine\\reallocation.py",
+      "accessCount": 5,
+      "lastAccessed": 1776584275666,
+      "type": "file"
+    },
+    {
+      "path": "",
+      "accessCount": 5,
+      "lastAccessed": 1776793833350,
+      "type": "directory"
+    },
+    {
       "path": "backend\\app\\agents\\agent1_capacity.py",
       "accessCount": 4,
       "lastAccessed": 1776566187072,
@@ -227,9 +276,15 @@
       "type": "directory"
     },
     {
-      "path": "backend\\app\\engine\\gci.py",
+      "path": "backend\\app\\data\\loader.py",
       "accessCount": 4,
       "lastAccessed": 1776773812572,
+      "type": "file"
+    },
+    {
+      "path": "frontend\\src\\components\\TimelineChart.tsx",
+      "accessCount": 4,
+      "lastAccessed": 1776793911960,
       "type": "file"
     },
     {
