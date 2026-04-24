@@ -194,6 +194,9 @@ def _call_agent2(paths: list[dict], a1: dict, debate_context: list[dict], force_
 
 # ── Synthesis helper ──────────────────────────────────────────────────────────
 
+_CO2_REF_KG = 5_000.0  # same constant used in project_simulation.py carbon_score formula
+
+
 def _synthesize_path(params: dict, ref_paths: list[dict]) -> dict:
     """Build a full SimulationPath-compatible dict from negotiated params + reference ratios."""
     def score(ref: dict) -> int:
@@ -213,12 +216,25 @@ def _synthesize_path(params: dict, ref_paths: list[dict]) -> dict:
     prod_days = max(1, round(days * ref["production_lt_days"] / ref_days))
     logi_days = max(1, days - rm_days - prod_days)
 
+    # Derive CO2 from the negotiated carbon_score using the inverse of the simulation formula:
+    # carbon_score = 100 - (total_co2 / 5000) * 100  =>  total_co2 = (100 - carbon_score) * 50
+    carbon_score = float(params["carbon_score"])
+    estimated_co2_kg = round(max(0.0, (100.0 - carbon_score) * _CO2_REF_KG / 100.0), 1)
+
+    # Derive transport_mode from the agreed mode (Express always uses air)
+    agreed_mode = params.get("mode", ref["mode"])
+    if agreed_mode == "Express":
+        transport_mode = "air"
+    else:
+        transport_mode = ref.get("transport_mode", "road")
+
     return {
         "name": "The AI Consensus",
         "icon": "🤝",
         "plant": params["plant"],
         "plant_name": params["plant_name"],
-        "mode": params.get("mode", ref["mode"]),
+        "mode": agreed_mode,
+        "transport_mode": transport_mode,
         "total_cost_eur": total,
         "plate_cost": plate_cost,
         "gasket_cost": gasket_cost,
@@ -227,9 +243,10 @@ def _synthesize_path(params: dict, ref_paths: list[dict]) -> dict:
         "raw_material_lt_days": rm_days,
         "production_lt_days": prod_days,
         "logistics_lt_days": logi_days,
-        "carbon_score": float(params["carbon_score"]),
+        "carbon_score": carbon_score,
         "grid_intensity": float(params.get("grid_intensity", ref["grid_intensity"])),
         "scrap_factor": ref["scrap_factor"],
+        "estimated_co2_kg": estimated_co2_kg,
     }
 
 
